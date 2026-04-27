@@ -1,0 +1,16 @@
+{
+  "name": "rent-anything-anywhere",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MERN peer-to-peer marketplace for students and locals",
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@stripe/react-stripe-js": "^6.2.0",
+    "@stripe/stripe-js": "^9.3.1"
+  }
+}

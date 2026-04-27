@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#fff7ed"/>
+  <rect x="60" y="160" width="280" height="20" rx="4" fill="#92400e"/>
+  <rect x="60" y="100" width="280" height="65" rx="8" fill="#b45309"/>
+  <rect x="70" y="108" width="260" height="50" rx="6" fill="#d97706"/>
+  <rect x="60" y="180" width="20" height="60" rx="4" fill="#78350f"/>
+  <rect x="320" y="180" width="20" height="60" rx="4" fill="#78350f"/>
+  <rect x="100" y="180" width="20" height="50" rx="4" fill="#78350f"/>
+  <rect x="280" y="180" width="20" height="50" rx="4" fill="#78350f"/>
+  <rect x="140" y="60" width="120" height="45" rx="6" fill="#92400e"/>
+  <rect x="148" y="68" width="104" height="30" rx="4" fill="#b45309"/>
+  <text x="200" y="265" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" font-weight="600" fill="#b45309">Furniture</text>
+</svg>

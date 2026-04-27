@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#fdf2f8"/>
+  <path d="M140 80 L100 120 L130 130 L130 230 L270 230 L270 130 L300 120 L260 80 L230 100 Q200 115 170 100 Z" fill="#ec4899"/>
+  <path d="M140 80 L170 100 Q200 115 230 100 L260 80 L240 75 Q200 95 160 75 Z" fill="#db2777"/>
+  <path d="M100 120 L130 130 L130 150 L95 140 Z" fill="#be185d"/>
+  <path d="M300 120 L270 130 L270 150 L305 140 Z" fill="#be185d"/>
+  <text x="200" y="265" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" font-weight="600" fill="#ec4899">Clothes</text>
+</svg>

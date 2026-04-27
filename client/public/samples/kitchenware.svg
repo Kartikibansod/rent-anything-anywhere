@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#f0fdf4"/>
+  <ellipse cx="200" cy="200" rx="90" ry="20" fill="#166534" opacity="0.3"/>
+  <path d="M130 200 Q120 140 140 110 Q160 85 200 85 Q240 85 260 110 Q280 140 270 200 Z" fill="#16a34a"/>
+  <path d="M138 200 Q128 145 147 116 Q166 90 200 90 Q234 90 253 116 Q272 145 262 200 Z" fill="#22c55e"/>
+  <rect x="190" y="60" width="20" height="30" rx="4" fill="#15803d"/>
+  <rect x="185" y="55" width="30" height="10" rx="3" fill="#166534"/>
+  <rect x="260" y="160" width="50" height="12" rx="6" fill="#15803d"/>
+  <text x="200" y="265" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" font-weight="600" fill="#16a34a">Kitchenware</text>
+</svg>

@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #111827;
+  background: #f6f8fd;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, rgba(124, 58, 237, 0.15), transparent 30rem),
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.11), transparent 28rem),
+    linear-gradient(180deg, #f8fbff 0%, #eef3ff 52%, #f9fbff 100%);
+  color: #0f172a;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, #7c3aed 0%, #2563eb 55%, #06b6d4 100%);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glass {
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+a,
+button {
+  transition: all 180ms ease;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #eef2ff 0%, #ffffff 45%, #e0f2fe 80%);
+  background-size: 240% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

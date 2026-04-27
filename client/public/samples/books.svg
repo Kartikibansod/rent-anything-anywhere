@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#f0f4ff"/>
+  <rect x="80" y="60" width="100" height="140" rx="6" fill="#6366f1"/>
+  <rect x="86" y="66" width="88" height="128" rx="4" fill="#818cf8"/>
+  <rect x="94" y="80" width="72" height="6" rx="3" fill="white" opacity="0.8"/>
+  <rect x="94" y="94" width="56" height="4" rx="2" fill="white" opacity="0.5"/>
+  <rect x="94" y="106" width="64" height="4" rx="2" fill="white" opacity="0.5"/>
+  <rect x="94" y="118" width="48" height="4" rx="2" fill="white" opacity="0.5"/>
+  <rect x="110" y="60" width="100" height="140" rx="6" fill="#4f46e5" transform="rotate(8 160 130)"/>
+  <rect x="116" y="66" width="88" height="128" rx="4" fill="#6366f1" transform="rotate(8 160 130)"/>
+  <rect x="140" y="60" width="100" height="140" rx="6" fill="#3730a3" transform="rotate(16 190 130)"/>
+  <text x="200" y="240" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" font-weight="600" fill="#4f46e5">Books</text>
+</svg>

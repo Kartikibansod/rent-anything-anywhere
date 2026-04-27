@@ -81,20 +81,6 @@ export function Home() {
         <motion.div className="absolute -left-16 top-10 -z-10 h-44 w-44 rounded-full bg-white/20 blur-3xl" animate={{ y: [0, -16, 0] }} transition={{ duration: 8, repeat: Infinity }} />
         <motion.div className="absolute right-10 top-16 -z-10 h-52 w-52 rounded-full bg-cyan-300/20 blur-3xl" animate={{ y: [0, 12, 0] }} transition={{ duration: 10, repeat: Infinity }} />
         <motion.div className="absolute bottom-12 left-1/3 -z-10 h-40 w-40 rounded-full bg-fuchsia-300/20 blur-3xl" animate={{ y: [0, -10, 0] }} transition={{ duration: 9, repeat: Infinity }} />
-        <div className="pointer-events-none absolute bottom-8 left-1/2 -z-10 flex w-[120%] -translate-x-1/2 gap-4 opacity-55">
-          {listings.slice(0, 5).map((listing) => (
-            <motion.div
-              key={listing._id}
-              className="w-52 shrink-0 rounded-2xl border border-white/30 bg-white/15 p-3 text-left backdrop-blur"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: [0.6, 1, 0.6], y: [10, 0, 10] }}
-              transition={{ duration: 7, repeat: Infinity, delay: 0.2 }}
-            >
-              <p className="line-clamp-1 text-xs font-semibold">{listing.title}</p>
-              <p className="mt-1 text-xs text-white/80">INR {listing.askingPrice || listing.rentRates?.daily || 0}</p>
-            </motion.div>
-          ))}
-        </div>
         <motion.p className="mx-auto inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur" whileHover={{ scale: 1.03 }}>
           <Sparkles size={16} />
           Student and local marketplace

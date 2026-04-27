@@ -1,11 +1,8 @@
-const { OAuth2Client } = require("google-auth-library");
 const { User } = require("../models/User");
 const { uploadImageBuffer } = require("../services/cloudinaryService");
+const { createOtp, verifyOtp } = require("../services/otpService");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { signAuthToken } = require("../utils/token");
-const { env } = require("../config/env");
-
-const googleClient = new OAuth2Client(env.google.clientId);
 
 function sendAuthResponse(res, user, statusCode = 200) {
   const token = signAuthToken(user);
@@ -17,17 +14,7 @@ function sendAuthResponse(res, user, statusCode = 200) {
 }
 
 const register = asyncHandler(async (req, res) => {
-  const {
-    name,
-    email,
-    password,
-    userType,
-    hostel,
-    locality,
-    collegeName,
-    collegeEmail,
-    location
-  } = req.body;
+  const { name, email, password, userType } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -39,16 +26,29 @@ const register = asyncHandler(async (req, res) => {
     email,
     password,
     userType,
-    hostel,
-    locality,
-    collegeName,
-    location,
-    verification: {
-      collegeEmail
-    }
+    isEmailVerified: false
   });
 
-  sendAuthResponse(res, user, 201);
+  const otp = await createOtp({ user: user._id, email: user.email, purpose: "register_verify" });
+  res.status(201).json({
+    requiresOtp: true,
+    purpose: "register_verify",
+    userId: user._id,
+    expiresAt: otp.expiresAt
+  });
+});
+
+const verifyRegistrationOtp = asyncHandler(async (req, res) => {
+  const { userId, otp } = req.body;
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  const result = await verifyOtp({ user: user._id, purpose: "register_verify", otp });
+  if (!result.ok) return res.status(400).json({ message: result.reason });
+
+  user.isEmailVerified = true;
+  await user.save();
+  sendAuthResponse(res, user);
 });
 
 const login = asyncHandler(async (req, res) => {
@@ -67,10 +67,45 @@ const login = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "This account is disabled" });
   }
 
+  if (!user.isEmailVerified) {
+    return res.status(403).json({ message: "Please verify your email before logging in" });
+  }
+
+  if (user.otp2faEnabled) {
+    const otp = await createOtp({ user: user._id, email: user.email, purpose: "login_2fa" });
+    return res.json({
+      requiresOtp: true,
+      purpose: "login_2fa",
+      userId: user._id,
+      expiresAt: otp.expiresAt
+    });
+  }
+
   user.lastLoginAt = new Date();
   await user.save({ validateBeforeSave: false });
 
   sendAuthResponse(res, user);
+});
+
+const verifyLoginOtp = asyncHandler(async (req, res) => {
+  const { userId, otp } = req.body;
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  const result = await verifyOtp({ user: user._id, purpose: "login_2fa", otp });
+  if (!result.ok) return res.status(400).json({ message: result.reason });
+
+  user.lastLoginAt = new Date();
+  await user.save({ validateBeforeSave: false });
+  sendAuthResponse(res, user);
+});
+
+const resendOtp = asyncHandler(async (req, res) => {
+  const { userId, purpose } = req.body;
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const otp = await createOtp({ user: user._id, email: user.email, purpose });
+  res.json({ message: "OTP resent", expiresAt: otp.expiresAt });
 });
 
 const me = asyncHandler(async (req, res) => {
@@ -78,7 +113,7 @@ const me = asyncHandler(async (req, res) => {
 });
 
 const updateMyLocation = asyncHandler(async (req, res) => {
-  const { lat, lng } = req.body;
+  const { lat, lng, locationText } = req.body;
   if (typeof lat !== "number" || typeof lng !== "number") {
     return res.status(400).json({ message: "lat and lng must be numbers" });
   }
@@ -87,8 +122,18 @@ const updateMyLocation = asyncHandler(async (req, res) => {
     type: "Point",
     coordinates: [lng, lat]
   };
+  if (typeof locationText === "string") req.user.locationText = locationText;
   await req.user.save();
 
+  res.json({ user: req.user.toSafeJSON() });
+});
+
+const updateSettings = asyncHandler(async (req, res) => {
+  const { otp2faEnabled, locationText, phoneNumber } = req.body;
+  if (typeof otp2faEnabled === "boolean") req.user.otp2faEnabled = otp2faEnabled;
+  if (typeof locationText === "string") req.user.locationText = locationText;
+  if (typeof phoneNumber === "string") req.user.phoneNumber = phoneNumber;
+  await req.user.save();
   res.json({ user: req.user.toSafeJSON() });
 });
 
@@ -114,85 +159,15 @@ const uploadStudentVerification = asyncHandler(async (req, res) => {
   });
 });
 
-const googleAuth = asyncHandler(async (req, res) => {
-  const { credential, userType = "local" } = req.body;
-
-  if (!credential) {
-    return res.status(400).json({ message: "Google credential is required" });
-  }
-
-  if (!env.google.clientId) {
-    return res.status(503).json({ message: "Google login is not configured on this server" });
-  }
-
-  // ── 1. Verify the Google ID token ────────────────────────────────────────
-  let payload;
-  try {
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: env.google.clientId
-    });
-    payload = ticket.getPayload();
-  } catch {
-    return res.status(401).json({ message: "Invalid Google token" });
-  }
-
-  // ── 2. Validate the payload ───────────────────────────────────────────────
-  if (!payload.email_verified) {
-    return res.status(401).json({ message: "Google account email is not verified" });
-  }
-
-  const { email, name, picture, sub: googleId } = payload;
-
-  if (!email || !name) {
-    return res.status(400).json({ message: "Incomplete Google profile — email and name are required" });
-  }
-
-  // ── 3. Upsert user — no duplicates ────────────────────────────────────────
-  // Detect userType from email domain: .edu / .ac.in → student
-  const isAcademicEmail = /(\.edu|\.ac\.in)$/i.test(email);
-  const resolvedUserType = isAcademicEmail ? "student" : userType;
-
-  const verificationStatus = isAcademicEmail ? "approved" : "not_required";
-  const verificationMethod = isAcademicEmail ? "email_domain" : "none";
-
-  let user = await User.findOne({ email });
-
-  if (user) {
-    // Existing user — update avatar and last login
-    if (picture && !user.avatar?.url) {
-      user.avatar = { url: picture, publicId: `google_${googleId}` };
-    }
-    if (!user.isActive) {
-      return res.status(403).json({ message: "This account has been disabled" });
-    }
-    user.lastLoginAt = new Date();
-    await user.save({ validateBeforeSave: false });
-  } else {
-    // New user — create with a random unusable password (Google users never use it)
-    const randomPassword = `google_${googleId}_${Date.now()}`;
-    user = await User.create({
-      name,
-      email,
-      password: randomPassword,
-      userType: resolvedUserType,
-      avatar: picture ? { url: picture, publicId: `google_${googleId}` } : undefined,
-      verification: {
-        status: verificationStatus,
-        method: verificationMethod,
-        collegeEmail: isAcademicEmail ? email : undefined
-      }
-    });
-  }
-
-  sendAuthResponse(res, user);
-});
-
 module.exports = {
   register,
+  verifyRegistrationOtp,
   login,
+  verifyLoginOtp,
+  resendOtp,
   me,
   updateMyLocation,
+  updateSettings,
   uploadStudentVerification,
-  googleAuth
+  sendAuthResponse
 };

@@ -4,7 +4,8 @@ dotenv.config();
 
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
-  port: process.env.PORT || 5000,
+  port: process.env.PORT || 5001,
+  serverUrl: process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5001}`,
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
   mongoUri: process.env.MONGO_URI,
   jwtSecret: process.env.JWT_SECRET,
@@ -16,10 +17,27 @@ const env = {
   },
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
   },
   google: {
-    clientId: process.env.GOOGLE_CLIENT_ID
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET
+  },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY
+  },
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM
+  },
+  twilio: {
+    sid: process.env.TWILIO_ACCOUNT_SID,
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+    phone: process.env.TWILIO_PHONE
   },
   turn: {
     url: process.env.TURN_SERVER_URL,
@@ -30,17 +48,12 @@ const env = {
 
 function assertRequiredEnv() {
   const missing = [];
-
   if (!env.mongoUri) missing.push("MONGO_URI");
   if (!env.jwtSecret) missing.push("JWT_SECRET");
-
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
-  }
+  if (missing.length > 0) throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
 }
 
 module.exports = env;
 module.exports.env = env;
 module.exports.assertRequiredEnv = assertRequiredEnv;
 module.exports.PORT = env.port;
-

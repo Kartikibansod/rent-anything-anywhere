@@ -83,6 +83,29 @@ router.patch(
 );
 
 router.get(
+  "/listings/flagged",
+  asyncHandler(async (req, res) => {
+    const listings = await Listing.find({ "moderation.state": "under_review" })
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 });
+    res.json({ listings });
+  })
+);
+
+router.patch(
+  "/listings/:id/review",
+  asyncHandler(async (req, res) => {
+    const { approve } = req.body;
+    const listing = await Listing.findById(req.params.id);
+    if (!listing) return res.status(404).json({ message: "Listing not found" });
+    listing.moderation.state = "live";
+    listing.status = approve ? "active" : "inactive";
+    await listing.save();
+    res.json({ listing });
+  })
+);
+
+router.get(
   "/analytics",
   asyncHandler(async (req, res) => {
     const [users, listings, deals, transactionsByCategory] =

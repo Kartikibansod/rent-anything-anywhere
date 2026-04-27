@@ -3,6 +3,7 @@ import { Calendar, Eye, Flag, Heart, MessageCircle, Share2, Star, UserCircle2, X
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Loading } from "../components/Loading.jsx";
 import { useToast } from "../components/ToastProvider.jsx";
 import { api, getErrorMessage, submitReport } from "../lib/api.js";
@@ -19,6 +20,7 @@ export function ListingDetail() {
   const [error, setError] = useState("");
   const [similar, setSimilar] = useState([]);
   const [shareOpen, setShareOpen] = useState(false);
+  const [priceHistory, setPriceHistory] = useState([]);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("Fake listing");
 
@@ -29,7 +31,11 @@ export function ListingDetail() {
         setListing(data.listing);
         return api.get(`/listings/${id}/similar`, { params: { limit: 4 } });
       })
-      .then(({ data }) => setSimilar(data.listings || []))
+      .then(async ({ data }) => {
+        setSimilar(data.listings || []);
+        const history = await api.get(`/listings/${id}/price-history`);
+        setPriceHistory((history.data.history || []).map((item) => ({ label: new Date(item.soldAt).toLocaleDateString(), price: item.finalPrice })));
+      })
       .catch((err) => setError(getErrorMessage(err, "Could not load listing")));
   }, [id]);
 
@@ -141,6 +147,8 @@ export function ListingDetail() {
         </div>
         <p className="mt-2 text-sm text-slate-600">{listing.condition} · {listing.location?.address}</p>
         {listing.itemAge ? <p className="mt-2 text-sm font-semibold text-slate-700">Age: {listing.itemAge}</p> : null}
+        {listing.moderation?.state === "under_review" ? <p className="mt-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">Under review</p> : null}
+        {listing.conditionAiReasoning ? <p className="mt-2 text-sm text-slate-600">AI condition note: {listing.conditionAiReasoning}</p> : null}
         {listing.conditionDescription ? <p className="mt-2 text-sm text-slate-600">{listing.conditionDescription}</p> : null}
         <p className="mt-5 leading-7 text-slate-700">{listing.description}</p>
 
@@ -149,7 +157,7 @@ export function ListingDetail() {
           <span>
             <strong>{listing.owner?.name}</strong>
             <span className="ml-2 text-xs text-leaf">
-              {listing.owner?.verification?.status === "approved" ? "Verified" : listing.owner?.userType}
+              {listing.owner?.isVerified ? "Verified" : listing.owner?.userType}
             </span>
           </span>
           <span className="inline-flex items-center gap-1 text-sm">
@@ -201,6 +209,23 @@ export function ListingDetail() {
         </div>
       </aside>
       </div>
+
+      <section>
+        <h2 className="mb-4 text-xl font-black">Similar items sold for</h2>
+        {priceHistory.length ? (
+          <div className="glass h-72 rounded-3xl p-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={priceHistory}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" hide />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="price" fill="#7C3AED" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : <p className="text-sm text-slate-500">No sold history yet for this category.</p>}
+      </section>
       <section>
         <h2 className="mb-4 text-xl font-black">Similar listings</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

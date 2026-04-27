@@ -1,5 +1,5 @@
 import React from "react";
-import { Camera, Check, MapPin, Package, Tag } from "lucide-react";
+import { Camera, Check, Sparkles, MapPin, Package, Tag } from "lucide-react";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -36,6 +36,8 @@ export function CreateListing() {
     lng: "74.2433"
   });
   const [photos, setPhotos] = useState([]);
+  const [estimate, setEstimate] = useState(null);
+  const [aiCondition, setAiCondition] = useState(null);
 
   const previews = useMemo(() => photos.map((file) => ({ file, url: URL.createObjectURL(file) })), [photos]);
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -50,6 +52,38 @@ export function CreateListing() {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   }
 
+  async function estimatePrice() {
+    try {
+      const { data } = await api.post("/listings/estimate-price", {
+        category: form.category,
+        item: form.title,
+        condition: form.condition,
+        age: form.itemAge
+      });
+      setEstimate(data);
+      toast.success("Price estimate ready");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Could not estimate price"));
+    }
+  }
+
+  async function scoreMyItem() {
+    if (!photos[0]) {
+      toast.error("Upload at least one photo first");
+      return;
+    }
+    const body = new FormData();
+    body.append("photo", photos[0]);
+    try {
+      const { data } = await api.post("/listings/score-condition", body);
+      setAiCondition(data);
+      setForm((current) => ({ ...current, condition: data.condition }));
+      toast.success("Condition scored by AI");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Could not score condition"));
+    }
+  }
+
   async function submit() {
     setError("");
     setIsSubmitting(true);
@@ -61,6 +95,8 @@ export function CreateListing() {
     body.append("conditionDescription", form.conditionDescription);
     body.append("itemAge", form.itemAge);
     body.append("description", form.description);
+    if (aiCondition?.score) body.append("conditionScore", String(aiCondition.score));
+    if (aiCondition?.reasoning) body.append("conditionAiReasoning", aiCondition.reasoning);
     body.append("location", JSON.stringify({ type: "Point", coordinates: [Number(form.lng), Number(form.lat)], address: form.address }));
     photos.forEach((photo) => body.append("photos", photo));
     if (type === "sell") body.append("askingPrice", form.askingPrice);
@@ -124,6 +160,8 @@ export function CreateListing() {
                 <p className="mt-2 text-sm text-slate-600">{body}</p>
               </motion.button>
             ))}
+            {estimate ? <div className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-900 sm:col-span-2">Estimated sell: INR {estimate.sellPrice || "-"}, rent/day: INR {estimate.rentPerDay || "-"}. {estimate.reasoning}</div> : null}
+            {aiCondition ? <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900 sm:col-span-2">Condition score: {aiCondition.score}/10. {aiCondition.reasoning}</div> : null}
           </div>
         ) : null}
 
@@ -131,7 +169,10 @@ export function CreateListing() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Input className="sm:col-span-2" name="title" placeholder="Title" value={form.title} onChange={update} />
             <Select name="category" value={form.category} onChange={update} options={categories} />
-            <Select name="condition" value={form.condition} onChange={update} options={["new", "like_new", "used", "poor"]} />
+            <div className="space-y-2">
+              <Select name="condition" value={form.condition} onChange={update} options={["new", "like_new", "used", "poor"]} />
+              <button type="button" className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold" onClick={scoreMyItem}><Sparkles size={16} />Score my item condition</button>
+            </div>
             <Input name="itemAge" placeholder="Item age (e.g. 6 months, 1 year, Brand new)" value={form.itemAge} onChange={update} />
             <Input name="conditionDescription" placeholder="Condition details (e.g. Minor scratches, works perfectly)" value={form.conditionDescription} onChange={update} />
             <textarea className="min-h-36 rounded-[22px] border border-slate-200 bg-white/80 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100 sm:col-span-2" name="description" placeholder="Description" value={form.description} onChange={update} />
@@ -156,6 +197,7 @@ export function CreateListing() {
 
         {step === 3 ? (
           <div className="grid gap-4 sm:grid-cols-2">
+            <button type="button" className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold sm:col-span-2" onClick={estimatePrice}><Sparkles size={16} />Estimate Price</button>
             {type === "sell" ? <Input name="askingPrice" placeholder="Sell price" value={form.askingPrice} onChange={update} /> : (
               <>
                 <Input name="daily" placeholder="Price per day" value={form.daily} onChange={update} />

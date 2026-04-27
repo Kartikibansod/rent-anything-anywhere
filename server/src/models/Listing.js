@@ -40,6 +40,8 @@ const listingSchema = new mongoose.Schema(
       enum: ["new", "like_new", "used", "poor"],
       required: true
     },
+    conditionScore: Number,
+    conditionAiReasoning: String,
     conditionDescription: {
       type: String,
       trim: true,
@@ -75,6 +77,7 @@ const listingSchema = new mongoose.Schema(
         type: [Number],
         required: true
       },
+      address: String
     },
     wishlistedBy: [
       {
@@ -101,6 +104,11 @@ const listingSchema = new mongoose.Schema(
         }
       }
     ],
+    moderation: {
+      isFlagged: { type: Boolean, default: false },
+      reasons: [String],
+      state: { type: String, enum: ["live", "under_review"], default: "live" }
+    },
     status: {
       type: String,
       enum: ["active", "sold", "rented", "inactive"],

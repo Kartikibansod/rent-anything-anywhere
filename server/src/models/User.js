@@ -11,8 +11,12 @@ const verificationSchema = new mongoose.Schema(
     },
     method: {
       type: String,
-      enum: ["none", "college_id"],
+      enum: ["none", "college_id", "email_domain"],
       default: "none"
+    },
+    collegeIdImage: {
+      url: String,
+      publicId: String
     }
   },
   { _id: false }
@@ -40,6 +44,15 @@ const userSchema = new mongoose.Schema(
       minlength: 8,
       select: false
     },
+    googleId: {
+      type: String,
+      index: true,
+      sparse: true
+    },
+    googleOnboardingPending: {
+      type: Boolean,
+      default: false
+    },
     userType: {
       type: String,
       enum: ["student", "local"],
@@ -51,6 +64,32 @@ const userSchema = new mongoose.Schema(
       default: "user"
     },
     collegeId: String,
+    locationText: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+    isPhoneVerified: {
+      type: Boolean,
+      default: false
+    },
+    otp2faEnabled: {
+      type: Boolean,
+      default: false
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false
+    },
+    profileCompleted: {
+      type: Boolean,
+      default: false
+    },
     location: {
       type: {
         type: String,
@@ -60,7 +99,11 @@ const userSchema = new mongoose.Schema(
       coordinates: {
         type: [Number],
         default: [0, 0]
-      },
+      }
+    },
+    avatar: {
+      url: String,
+      publicId: String
     },
     rating: {
       average: {
@@ -85,7 +128,8 @@ const userSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true
-    }
+    },
+    lastLoginAt: Date
   },
   { timestamps: true }
 );
@@ -100,6 +144,13 @@ userSchema.pre("validate", function setVerificationDefaults(next) {
     this.verification.status = "pending";
     this.verification.method = "college_id";
   }
+
+  this.profileCompleted = Boolean(this.name && this.locationText);
+  this.isVerified = Boolean(
+    this.isEmailVerified
+      && this.profileCompleted
+      && (this.userType !== "student" || this.verification.status === "approved")
+  );
 
   next();
 });
@@ -124,4 +175,3 @@ userSchema.methods.toSafeJSON = function toSafeJSON() {
 const User = mongoose.model("User", userSchema);
 
 module.exports = { User };
-

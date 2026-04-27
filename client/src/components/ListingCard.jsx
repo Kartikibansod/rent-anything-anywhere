@@ -30,9 +30,10 @@ export function ListingCard({ listing, onSave }) {
               event.currentTarget.src = getListingFallbackImage(listing.category);
             }}
           />
-          <div className="absolute left-3 top-3 flex gap-2">
+          <div className="absolute left-3 top-3 flex flex-wrap gap-2">
             <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-800 backdrop-blur">{listing.category}</span>
             <span className={`rounded-full px-3 py-1 text-xs font-bold text-white backdrop-blur ${listing.type === "sell" ? "bg-emerald-600/90" : "bg-violet-600/90"}`}>{listingTypeLabel}</span>
+            {listing.moderation?.state === "under_review" ? <span className="rounded-full bg-amber-500/90 px-3 py-1 text-xs font-bold text-white">Under review</span> : null}
           </div>
           <motion.button
             className="absolute right-3 top-3 rounded-full bg-white/95 p-2 text-slate-500 shadow-sm hover:text-pink-600"
@@ -64,7 +65,7 @@ export function ListingCard({ listing, onSave }) {
         <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
           <span className="inline-flex items-center gap-1">
             {listing.owner?.name || "Seller"}
-            {listing.owner?.verification?.status === "approved" ? <CheckCircle2 size={14} className="text-blue-600" /> : null}
+            {listing.owner?.isVerified ? <CheckCircle2 size={14} className="text-blue-600" /> : null}
           </span>
           <span className="inline-flex items-center gap-1">
             <Star size={14} className="fill-saffron text-saffron" />

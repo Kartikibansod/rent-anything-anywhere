@@ -2,12 +2,26 @@
 
 A MERN peer-to-peer marketplace for hostel students and nearby locals to buy, sell, and rent items.
 
+## Key Features
+
+- Restored full-screen split login UI with trust badges and Google sign in.
+- Email OTP verification on registration and optional OTP-based login 2FA.
+- Google OAuth 2.0 login with first-login `userType` onboarding and JWT issuance.
+- Stripe payments (`/api/payments/create-intent`) with UPI/card support + webhook confirmation.
+- Verified-user-only payment gate (email verified + profile completed + student ID approval for students).
+- Cash-on-meetup still supported with in-app dual confirmations.
+- AI price estimator (`gpt-4o-mini`) for sell/rent suggestions.
+- AI condition scorer (`gpt-4o`) with condition score, auto condition fill, and reasoning.
+- Fraud detection and auto-flagging for suspicious listings, with admin review flow.
+- Price history capture on sold/rented completion and chart on listing detail page.
+- Optional phone trust workflow using Twilio-backed OTP trigger.
+
 ## Structure
 
 - `client/` - React frontend shell
-- `server/` - Express API, MongoDB models, JWT auth, and Socket.io bootstrap
+- `server/` - Express API, MongoDB models, JWT auth, Stripe, OTP, AI, and Socket.io bootstrap
 
-## Backend Quick Start
+## Backend Setup
 
 ```bash
 cd server
@@ -16,5 +30,25 @@ cp .env.example .env
 npm run dev
 ```
 
-The API defaults to `http://localhost:5000`.
+## Frontend Setup
 
+```bash
+cd client
+npm install
+npm run dev
+```
+
+## Required Environment Variables (`server/.env`)
+
+- `MONGO_URI`, `JWT_SECRET`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
+- `OPENAI_API_KEY`
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE`
+
+## Frontend Environment Variables (`client/.env`)
+
+- `VITE_API_URL=http://localhost:5001/api`
+- `VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...`
+- `VITE_GOOGLE_CLIENT_ID=...`

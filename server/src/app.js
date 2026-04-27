@@ -3,6 +3,7 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const morgan = require("morgan");
+const passport = require("./config/passport");
 const { env } = require("./config/env");
 const { errorHandler, notFound } = require("./middleware/errorHandler");
 const adminRoutes = require("./routes/adminRoutes");
@@ -31,33 +32,21 @@ function createApp() {
   const app = express();
 
   app.use(helmet());
-  app.use(
-    cors({
-      origin(origin, callback) {
-        if (!origin || allowedOrigins.has(origin) || isLocalDevOrigin(origin)) {
-          return callback(null, true);
-        }
-        return callback(new Error(`CORS blocked origin: ${origin}`));
-      },
-      credentials: true
-    })
-  );
-  app.use("/api/webhook", express.raw({ type: "application/json" }));
-  app.use(express.json({ limit: "1mb" }));
+  app.use(cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin) || isLocalDevOrigin(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked origin: ${origin}`));
+    },
+    credentials: true
+  }));
+  app.use(passport.initialize());
+  app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
+  app.use(express.json({ limit: "5mb" }));
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan(env.nodeEnv === "production" ? "combined" : "dev"));
-  app.use(
-    rateLimit({
-      windowMs: 15 * 60 * 1000,
-      limit: 300,
-      standardHeaders: true,
-      legacyHeaders: false
-    })
-  );
+  app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
 
-  app.get("/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
+  app.get("/health", (req, res) => res.json({ status: "ok" }));
 
   app.use("/api/auth", authRouter);
   app.use("/api/listings", listingRoutes);

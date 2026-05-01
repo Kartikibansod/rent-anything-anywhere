@@ -3,7 +3,9 @@ import { Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "../components/ToastProvider.jsx";
+import { OtpInput } from "../components/OtpInput.jsx";
 import { api, getErrorMessage } from "../lib/api.js";
+import { isAllowedEmail } from "../lib/emailValidation.js";
 import { useUser } from "../lib/userContext.jsx";
 
 const initialForm = { email: "", password: "" };
@@ -18,9 +20,16 @@ export function Login() {
   const [otpState, setOtpState] = useState(null);
   const [cooldown, setCooldown] = useState(0);
   const [googlePendingUser, setGooglePendingUser] = useState(null);
+  const [authConfig, setAuthConfig] = useState({ googleConfigured: false });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    api.get("/auth/config")
+      .then(({ data }) => setAuthConfig(data))
+      .catch(() => setAuthConfig({ googleConfigured: false }));
+  }, []);
 
   useEffect(() => {
     const token = params.get("token");
@@ -41,7 +50,7 @@ export function Login() {
       localStorage.setItem("token", token);
       api.get("/auth/me").then(({ data }) => {
         setUser(data.user);
-        navigate("/feed");
+        navigate("/");
       }).catch(() => {});
     }
   }, [params, navigate, setUser, toast]);
@@ -60,12 +69,16 @@ export function Login() {
     localStorage.setItem("token", payload.token);
     setUser(payload.user);
     toast.success("Logged in successfully");
-    navigate("/feed");
+    navigate("/");
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
+    if (!isAllowedEmail(form.email)) {
+      setError("Please use a valid email address");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const { data } = await api.post("/auth/login", form);
@@ -85,9 +98,10 @@ export function Login() {
     }
   }
 
-  async function verifyOtp() {
+  async function verifyOtp(nextOtp = otp) {
+    if (nextOtp.length !== 6) return;
     try {
-      const { data } = await api.post("/auth/login/verify-otp", { userId: otpState.userId, otp });
+      const { data } = await api.post("/auth/login/verify-otp", { userId: otpState.userId, otp: nextOtp });
       await completeAuth(data);
     } catch (err) {
       toast.error(getErrorMessage(err, "OTP verification failed"));
@@ -104,6 +118,13 @@ export function Login() {
   async function continueGoogleLogin(userType) {
     if (!googlePendingUser) return;
     const { data } = await api.post("/auth/google/user-type", { userId: googlePendingUser._id, userType });
+    if (data.requiresOtp) {
+      setOtpState(data);
+      setGooglePendingUser(null);
+      setCooldown(60);
+      toast.success("OTP sent to your email");
+      return;
+    }
     await completeAuth(data);
   }
 
@@ -128,6 +149,7 @@ export function Login() {
       <section className="flex min-h-screen items-center justify-center bg-white px-5 py-8 sm:px-8">
         <motion.div className="w-full max-w-2xl bg-white px-6 py-7 sm:px-10 sm:py-10" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
           <h2 className="mt-2 text-4xl font-black text-slate-950">Login</h2>
+          <p className="mt-2 text-sm font-black uppercase tracking-[0.16em] text-emerald-700">WELCOME BACK</p>
           <p className="mt-2 text-sm text-slate-600">Access your listings, chats, deals, and verification status.</p>
 
           {!otpState ? (
@@ -145,16 +167,22 @@ export function Login() {
                 </div>
               </label>
               <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] text-base font-bold text-white" type="submit" disabled={isSubmitting}>{isSubmitting ? "Logging in..." : "Login"}</button>
-              <a className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 font-semibold text-slate-700" href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001'}/api/auth/google`}>
-                <span className="text-lg">G</span> Google Sign In
-              </a>
+              {authConfig.googleConfigured ? (
+                <a className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 font-semibold text-slate-700" href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001'}/api/auth/google`}>
+                  <span className="text-lg">G</span> Google Sign In
+                </a>
+              ) : (
+                <button className="flex h-14 w-full cursor-not-allowed items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-slate-100 font-semibold text-slate-400" type="button" disabled title="Google Sign In not configured">
+                  <span className="text-lg">G</span> Google Sign In
+                </button>
+              )}
               <p className="pt-2 text-sm text-slate-600">New here? <Link to="/register" className="font-semibold text-violet-700 hover:text-violet-800">Create an account</Link></p>
             </motion.form>
           ) : (
             <div className="mt-8 space-y-4">
               <p className="text-sm text-slate-600">Enter the 6-digit OTP sent to your email.</p>
-              <input className="h-14 w-full rounded-2xl border border-slate-200 px-4 text-center text-2xl tracking-[0.45em]" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="------" />
-              <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] font-bold text-white" type="button" onClick={verifyOtp}>Verify OTP</button>
+              <OtpInput value={otp} onChange={setOtp} onComplete={verifyOtp} />
+              <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] font-bold text-white" type="button" onClick={() => verifyOtp()}>Verify OTP</button>
               <button className="w-full text-sm font-semibold text-indigo-700 disabled:text-slate-400" type="button" onClick={resendOtp} disabled={cooldown > 0}>Resend OTP {cooldown > 0 ? `in ${cooldown}s` : ""}</button>
             </div>
           )}

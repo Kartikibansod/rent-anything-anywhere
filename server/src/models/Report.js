@@ -27,6 +27,11 @@ const reportSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 500
+    },
     status: {
       type: String,
       enum: ["pending", "resolved"],
@@ -39,4 +44,3 @@ const reportSchema = new mongoose.Schema(
 const Report = mongoose.model("Report", reportSchema);
 
 module.exports = { Report };
-

@@ -2,6 +2,7 @@ const express = require("express");
 const { Listing } = require("../models/Listing");
 const { Notification } = require("../models/Notification");
 const { PriceHistory } = require("../models/PriceHistory");
+const { Transaction } = require("../models/Transaction");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { authenticate } = require("../middleware/auth");
 const { upload } = require("../middleware/upload");
@@ -10,25 +11,46 @@ const { estimatePrice, scoreCondition } = require("../services/aiService");
 
 const router = express.Router();
 const suspiciousKeywords = ["advance payment only", "urgent transfer", "crypto only", "no meetup"];
+const conditionMap = {
+  New: "new",
+  "Like New": "like_new",
+  Used: "used",
+  Poor: "poor"
+};
 
 function listingFilters(query) {
-  const filter = { status: { $ne: "inactive" } };
-  const search = query.search || query.keyword;
+  const filter = { status: "active", expiresAt: { $gt: new Date() } };
+  const search = query.q || query.search || query.keyword;
 
   if (search) {
     const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").trim();
     if (escaped) {
-      filter.$or = [
+      filter.$and = [
+        ...(filter.$and || []),
+        { $or: [
         { title: { $regex: escaped, $options: "i" } },
         { description: { $regex: escaped, $options: "i" } },
         { category: { $regex: escaped, $options: "i" } }
+        ] }
       ];
     }
   }
   if (query.category) filter.category = query.category;
-  if (query.condition) filter.condition = query.condition;
-  const requestedType = (query.type || query.listingType || "").toString().trim().toLowerCase();
+  if (query.condition) filter.condition = conditionMap[query.condition] || query.condition;
+  const requestedType = (query.type || query.listingType || query.mode || "").toString().trim().toLowerCase();
   if (requestedType && requestedType !== "all") filter.type = requestedType;
+
+  const minPrice = Number(query.minPrice);
+  const maxPrice = Number(query.maxPrice);
+  if (!Number.isNaN(minPrice) || !Number.isNaN(maxPrice)) {
+    const range = {};
+    if (!Number.isNaN(minPrice)) range.$gte = minPrice;
+    if (!Number.isNaN(maxPrice)) range.$lte = maxPrice;
+    filter.$and = [
+      ...(filter.$and || []),
+      { $or: [{ askingPrice: range }, { "rentRates.daily": range }] }
+    ];
+  }
 
   return filter;
 }
@@ -53,6 +75,23 @@ async function detectFraudSignals({ owner, category, price, description }) {
   return reasons;
 }
 
+function normalizeAiEstimate(raw) {
+  if (!raw) return undefined;
+  const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+  return {
+    sellPrice: Number(parsed.sellPrice?.recommended || parsed.sellPrice || 0) || undefined,
+    rentPerDay: Number(parsed.rentPerDay?.recommended || parsed.rentPerDay || 0) || undefined,
+    confidence: parsed.confidence,
+    reasoning: parsed.reasoning,
+    marketAnalysis: parsed.marketAnalysis,
+    pricingReasoning: parsed.pricingReasoning,
+    conditionScore: Number(parsed.conditionScore || 0) || undefined,
+    actualCondition: parsed.actualCondition,
+    warning: parsed.warning,
+    appliedAt: new Date()
+  };
+}
+
 router.get("/", asyncHandler(async (req, res) => {
   const { lng, lat, radius = 10, page = 1, limit = 20 } = req.query;
   const filter = listingFilters(req.query);
@@ -73,19 +112,29 @@ router.get("/", asyncHandler(async (req, res) => {
       { $limit: Number(limit) },
       { $lookup: { from: "users", localField: "owner", foreignField: "_id", as: "owner" } },
       { $unwind: "$owner" },
-      { $addFields: { distanceKm: { $round: [{ $divide: ["$distanceMeters", 1000] }, 2] } } }
+      ...(req.query.sellerType && req.query.sellerType !== "All" ? [{ $match: { "owner.userType": req.query.sellerType.toLowerCase() } }] : []),
+      { $addFields: { distanceKm: { $round: [{ $divide: ["$distanceMeters", 1000] }, 2] } } },
+      {
+        $project: {
+          "owner.password": 0,
+          "owner.phoneNumber": 0,
+          "owner.googleId": 0,
+          "owner.__v": 0
+        }
+      }
     ]);
 
     return res.json({ listings: geoListings, page: Number(page), limit: Number(limit) });
   }
 
   const listings = await Listing.find(filter)
-    .populate("owner", "name userType locationText rating verification avatar isVerified isPhoneVerified")
+    .populate("owner", "name userType locationText collegeName rating verification avatar isVerified isPhoneVerified")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(Number(limit));
 
-  res.json({ listings, page: Number(page), limit: Number(limit) });
+  const sellerType = req.query.sellerType && req.query.sellerType !== "All" ? req.query.sellerType.toLowerCase() : "";
+  res.json({ listings: sellerType ? listings.filter((listing) => listing.owner?.userType === sellerType) : listings, page: Number(page), limit: Number(limit) });
 }));
 
 router.get("/mine", authenticate, asyncHandler(async (req, res) => {
@@ -95,13 +144,18 @@ router.get("/mine", authenticate, asyncHandler(async (req, res) => {
 
 router.get("/wishlist", authenticate, asyncHandler(async (req, res) => {
   const listings = await Listing.find({ wishlistedBy: req.user._id })
-    .populate("owner", "name userType rating verification isVerified")
+    .populate("owner", "name userType collegeName rating verification isVerified")
     .sort({ updatedAt: -1 });
   res.json({ listings });
 }));
 
-router.post("/estimate-price", authenticate, asyncHandler(async (req, res) => {
-  const result = await estimatePrice(req.body);
+router.post("/estimate-price", authenticate, upload.array("photos", 5), asyncHandler(async (req, res) => {
+  const images = [];
+  for (const file of req.files || []) {
+    const base64 = file.buffer.toString("base64");
+    images.push(`data:${file.mimetype};base64,${base64}`);
+  }
+  const result = await estimatePrice({ ...req.body, images });
   res.json(result);
 }));
 
@@ -127,6 +181,15 @@ router.post("/", authenticate, upload.array("photos", 5), asyncHandler(async (re
   }
 
   const askingPrice = Number(req.body.askingPrice || rentRates?.daily || 0);
+  const completedDeals = await Transaction.countDocuments({
+    seller: req.user._id,
+    status: { $in: ["completed", "released"] }
+  });
+  const approvedListings = await Listing.countDocuments({
+    owner: req.user._id,
+    "moderation.state": { $in: ["live", "under_review"] }
+  });
+  const needsFirstApproval = completedDeals === 0 && approvedListings === 0;
   const fraudReasons = await detectFraudSignals({
     owner: req.user._id,
     category: req.body.category,
@@ -149,13 +212,14 @@ router.post("/", authenticate, upload.array("photos", 5), asyncHandler(async (re
     rentRates: req.body.type === "rent" ? rentRates : undefined,
     damageDeposit: Number(req.body.damageDeposit || 0),
     description: req.body.description,
+    aiPriceEstimate: normalizeAiEstimate(req.body.aiPriceEstimate),
     location,
     moderation: {
       isFlagged: fraudReasons.length > 0,
       reasons: fraudReasons,
-      state: fraudReasons.length > 0 ? "under_review" : "live"
+      state: needsFirstApproval ? "pending_first_approval" : fraudReasons.length > 0 ? "under_review" : "live"
     },
-    status: fraudReasons.length > 0 ? "inactive" : "active"
+    status: needsFirstApproval ? "pending_approval" : fraudReasons.length > 0 ? "inactive" : "active"
   });
 
   res.status(201).json({ listing });
@@ -170,16 +234,18 @@ router.get('/:id/price-history', asyncHandler(async (req, res) => {
 
 router.get('/:id', asyncHandler(async (req, res) => {
   const listing = await Listing.findByIdAndUpdate(req.params.id, { $inc: { viewCount: 1 } }, { new: true })
-    .populate('owner', 'name userType locationText rating verification avatar isVerified isPhoneVerified');
+    .populate('owner', 'name userType locationText collegeName rating verification avatar isVerified isPhoneVerified');
   if (!listing) return res.status(404).json({ message: 'Listing not found' });
   res.json({ listing });
 }));
 
 router.get('/:id/similar', asyncHandler(async (req, res) => {
-  const current = await Listing.findById(req.params.id).select('category');
+  const current = await Listing.findById(req.params.id).select('category askingPrice rentRates location');
   if (!current) return res.status(404).json({ message: 'Listing not found' });
-  const listings = await Listing.find({ _id: { $ne: req.params.id }, category: current.category, status: 'active' })
-    .populate('owner', 'name userType rating verification avatar')
+  const price = Number(current.askingPrice || current.rentRates?.daily || 0);
+  const priceRange = price ? { $or: [{ askingPrice: { $gte: price * 0.6, $lte: price * 1.4 } }, { "rentRates.daily": { $gte: price * 0.6, $lte: price * 1.4 } }] } : {};
+  const listings = await Listing.find({ _id: { $ne: req.params.id }, category: current.category, status: 'active', expiresAt: { $gt: new Date() }, ...priceRange })
+    .populate('owner', 'name userType collegeName rating verification avatar')
     .sort({ createdAt: -1 })
     .limit(Number(req.query.limit || 4));
   res.json({ listings });
@@ -197,7 +263,12 @@ router.post('/:id/wishlist', authenticate, asyncHandler(async (req, res) => {
 router.post('/:id/offer', authenticate, asyncHandler(async (req, res) => {
   const listing = await Listing.findById(req.params.id);
   if (!listing) return res.status(404).json({ message: 'Listing not found' });
-  const offer = { buyer: req.user._id, amount: Number(req.body.amount), message: req.body.message, status: 'pending', createdAt: new Date() };
+  const amount = Number(req.body.amount);
+  const asking = Number(listing.askingPrice || listing.rentRates?.daily || 0);
+  if (!amount || amount < asking * 0.5) {
+    return res.status(400).json({ message: "Offer cannot be below 50% of asking price" });
+  }
+  const offer = { buyer: req.user._id, amount, message: req.body.message, status: 'pending', expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), createdAt: new Date() };
   listing.offers.push(offer);
   await listing.save();
   await Notification.create({ user: listing.owner, type: 'offer', title: 'New offer received', message: `${req.user.name} offered INR ${offer.amount} for ${listing.title}.`, data: { listingId: listing._id } });

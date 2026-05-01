@@ -15,7 +15,7 @@ const userOtpSchema = new mongoose.Schema(
     },
     purpose: {
       type: String,
-      enum: ["register_verify", "login_2fa", "phone_verify"],
+      enum: ["register", "login", "register_verify", "login_2fa", "phone_verify"],
       required: true
     },
     otpHash: {
@@ -30,12 +30,16 @@ const userOtpSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    used: {
+      type: Boolean,
+      default: false
+    },
     consumedAt: Date
   },
   { timestamps: true }
 );
 
-userOtpSchema.index({ user: 1, purpose: 1, consumedAt: 1 });
+userOtpSchema.index({ user: 1, purpose: 1, used: 1 });
 userOtpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const UserOtp = mongoose.model("UserOtp", userOtpSchema);

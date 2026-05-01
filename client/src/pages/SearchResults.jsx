@@ -14,6 +14,7 @@ import { useUser } from "../lib/userContext.jsx";
 const categories = ["All", "Books", "Electronics", "Furniture", "Clothes", "Cycles", "Kitchenware", "Sports gear"];
 const conditions = ["Any", "New", "Like New", "Used", "Poor"];
 const sellerTypes = ["All", "Student", "Local"];
+const listingTypes = [["", "All"], ["sell", "Buy"], ["rent", "Rent"]];
 
 export function SearchResults() {
   const { coords: userCoords } = useUser();
@@ -110,6 +111,14 @@ export function SearchResults() {
           <div>
             <h3 className="mb-2 text-sm font-black text-slate-700">Search</h3>
             <input className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:ring-4 focus:ring-indigo-100" value={filters.search} onChange={(event) => update("search", event.target.value)} placeholder="What are you looking for?" />
+          </div>
+          <div>
+            <h3 className="mb-2 text-sm font-black text-slate-700">Type</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {listingTypes.map(([value, label]) => (
+                <button key={label} type="button" onClick={() => update("type", value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filters.type === value ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-700"}`}>{label}</button>
+              ))}
+            </div>
           </div>
           <div>
             <h3 className="mb-2 text-sm font-black text-slate-700">Price range (INR)</h3>

@@ -17,7 +17,8 @@ const notificationSchema = new mongoose.Schema(
         "incoming_call",
         "price_drop",
         "verification",
-        "report_update"
+        "report_update",
+        "cash_meetup"
       ],
       required: true
     },
@@ -41,4 +42,3 @@ const notificationSchema = new mongoose.Schema(
 const Notification = mongoose.model("Notification", notificationSchema);
 
 module.exports = { Notification };
-

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowRight, Search, ShoppingCart, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, PackageOpen, Search, ShoppingCart, SlidersHorizontal, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ListingCard } from "../components/ListingCard.jsx";
@@ -31,13 +31,13 @@ export function BuyListings() {
     api
       .get("/listings", {
         params: {
-          mode: "sell",
+          type: "sell",
           search: search || undefined,
           category: category || undefined,
           condition: condition || undefined,
           lat: coords.lat,
           lng: coords.lng,
-          distance: 15
+          radius: 15
         }
       })
       .then(({ data }) => setListings(data.listings))
@@ -145,12 +145,12 @@ export function BuyListings() {
           <Loading cards={8} />
         ) : listings.length === 0 ? (
           <div className="glass rounded-[32px] p-12 text-center text-slate-500">
-            <ShoppingCart className="mx-auto mb-4 text-emerald-400" size={40} />
-            <p className="text-lg font-bold">No items for sale found.</p>
-            <p className="mt-2 text-sm">Try a different category or search term.</p>
+            <PackageOpen className="mx-auto mb-4 text-emerald-500" size={44} />
+            <p className="text-lg font-black text-slate-800">No listings yet</p>
+            <p className="mt-2 text-sm">Be the first to post something!</p>
             <button
               className="mt-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-bold text-white hover:bg-emerald-700"
-              onClick={() => navigate("/sell")}
+              onClick={() => navigate("/create")}
             >
               Post something for sale <ArrowRight size={15} />
             </button>

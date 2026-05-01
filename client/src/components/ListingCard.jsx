@@ -11,9 +11,12 @@ export function ListingCard({ listing, onSave }) {
     listing.type === "rent"
       ? `INR ${listing.rentRates?.daily || listing.rentRates?.weekly || listing.rentRates?.monthly || 0}/day`
       : `INR ${listing.askingPrice || 0}`;
+  const shortDescription = listing.description && listing.description.length > 80
+    ? `${listing.description.slice(0, 80)}...`
+    : listing.description;
 
   return (
-    <Link to={`/listing/${listing._id}`} className="block">
+    <Link to={`/listings/${listing._id}`} className="block">
       <motion.article
         className="group overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-lg transition hover:shadow-2xl hover:shadow-indigo-950/10"
         whileHover={{ y: -8, scale: 1.015 }}
@@ -55,12 +58,14 @@ export function ListingCard({ listing, onSave }) {
           {listing.title}
         </div>
         <p className={`mt-1 text-base font-bold ${listing.type === "sell" ? "text-emerald-600" : "text-violet-700"}`}>{price}</p>
+        {shortDescription ? <p className="mt-2 line-clamp-2 text-sm text-slate-500">{shortDescription}</p> : null}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
           <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700">{listing.condition}</span>
           <span className="inline-flex items-center gap-1">
             <MapPin size={13} />
             {listing.location?.address || "Nearby"}
           </span>
+          {listing.owner?.collegeName ? <span className="rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">From your campus</span> : null}
         </div>
         <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
           <span className="inline-flex items-center gap-1">
@@ -87,7 +92,7 @@ export function ListingCard({ listing, onSave }) {
             </Link>
             <Link
               className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-white ${listing.type === "sell" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-violet-600 hover:bg-violet-700"}`}
-              to={`/listing/${listing._id}`}
+              to={`/listings/${listing._id}`}
               onClick={(event) => event.stopPropagation()}
             >
               {listing.type === "rent" ? "Rent" : "Buy"}

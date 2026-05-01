@@ -64,6 +64,16 @@ const userSchema = new mongoose.Schema(
       default: "user"
     },
     collegeId: String,
+    collegeName: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+    hostelName: {
+      type: String,
+      trim: true,
+      default: ""
+    },
     locationText: {
       type: String,
       trim: true,

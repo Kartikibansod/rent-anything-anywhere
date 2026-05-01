@@ -1,8 +1,10 @@
 const { User } = require("../models/User");
+const { UserOtp } = require("../models/UserOtp");
 const { uploadImageBuffer } = require("../services/cloudinaryService");
-const { createOtp, verifyOtp } = require("../services/otpService");
+const { createOtp, isSmtpConfigured, verifyOtp } = require("../services/otpService");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { signAuthToken } = require("../utils/token");
+const { isAllowedEmail } = require("../utils/emailValidation");
 
 function sendAuthResponse(res, user, statusCode = 200) {
   const token = signAuthToken(user);
@@ -14,7 +16,10 @@ function sendAuthResponse(res, user, statusCode = 200) {
 }
 
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, userType } = req.body;
+  const { name, email, password, userType, collegeName, hostelName } = req.body;
+  if (!isAllowedEmail(email)) {
+    return res.status(400).json({ message: "Please use a valid email address" });
+  }
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -26,8 +31,15 @@ const register = asyncHandler(async (req, res) => {
     email,
     password,
     userType,
-    isEmailVerified: false
+    collegeName,
+    hostelName,
+    isEmailVerified: !isSmtpConfigured(),
+    locationText: "Kolhapur"
   });
+
+  if (!isSmtpConfigured()) {
+    return sendAuthResponse(res, user, 201);
+  }
 
   const otp = await createOtp({ user: user._id, email: user.email, purpose: "register_verify" });
   res.status(201).json({
@@ -57,6 +69,9 @@ const login = asyncHandler(async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ message: "Email and password are required" });
   }
+  if (!isAllowedEmail(email)) {
+    return res.status(400).json({ message: "Please use a valid email address" });
+  }
 
   const user = await User.findOne({ email }).select("+password");
   if (!user || !(await user.comparePassword(password))) {
@@ -67,24 +82,22 @@ const login = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "This account is disabled" });
   }
 
-  if (!user.isEmailVerified) {
-    return res.status(403).json({ message: "Please verify your email before logging in" });
+  if (!isSmtpConfigured()) {
+    if (!user.isEmailVerified) {
+      user.isEmailVerified = true;
+    }
+    user.lastLoginAt = new Date();
+    await user.save({ validateBeforeSave: false });
+    return sendAuthResponse(res, user);
   }
 
-  if (user.otp2faEnabled) {
-    const otp = await createOtp({ user: user._id, email: user.email, purpose: "login_2fa" });
-    return res.json({
-      requiresOtp: true,
-      purpose: "login_2fa",
-      userId: user._id,
-      expiresAt: otp.expiresAt
-    });
-  }
-
-  user.lastLoginAt = new Date();
-  await user.save({ validateBeforeSave: false });
-
-  sendAuthResponse(res, user);
+  const otp = await createOtp({ user: user._id, email: user.email, purpose: "login_2fa" });
+  return res.json({
+    requiresOtp: true,
+    purpose: "login_2fa",
+    userId: user._id,
+    expiresAt: otp.expiresAt
+  });
 });
 
 const verifyLoginOtp = asyncHandler(async (req, res) => {
@@ -102,8 +115,15 @@ const verifyLoginOtp = asyncHandler(async (req, res) => {
 
 const resendOtp = asyncHandler(async (req, res) => {
   const { userId, purpose } = req.body;
+  if (!["register_verify", "login_2fa"].includes(purpose)) {
+    return res.status(400).json({ message: "Invalid OTP purpose" });
+  }
   const user = await User.findById(userId);
   if (!user) return res.status(404).json({ message: "User not found" });
+  const recent = await UserOtp.findOne({ user: user._id, purpose, used: false }).sort({ createdAt: -1 });
+  if (recent && Date.now() - recent.createdAt.getTime() < 60 * 1000) {
+    return res.status(429).json({ message: "Please wait before requesting another OTP" });
+  }
   const otp = await createOtp({ user: user._id, email: user.email, purpose });
   res.json({ message: "OTP resent", expiresAt: otp.expiresAt });
 });

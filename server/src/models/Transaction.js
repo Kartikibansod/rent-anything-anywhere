@@ -23,7 +23,7 @@ const transactionSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["online", "cash"],
+      enum: ["card", "upi", "cash"],
       required: true
     },
     amount: {
@@ -32,19 +32,41 @@ const transactionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "completed", "failed"],
+      enum: ["pending", "awaiting_confirmation", "held", "paid", "released", "completed", "failed", "refunded", "disputed"],
       default: "pending"
     },
     stripePaymentIntentId: String,
+    currency: {
+      type: String,
+      default: "inr",
+      lowercase: true
+    },
+    upi: {
+      vpa: String,
+      deepLink: String,
+      reference: String
+    },
     cashConfirmations: {
       buyer: { type: Boolean, default: false },
       seller: { type: Boolean, default: false }
+    },
+    releasedAt: Date,
+    refundedAt: Date,
+    dispute: {
+      reason: String,
+      evidenceUrl: String,
+      openedAt: Date,
+      status: { type: String, enum: ["open", "resolved"] }
     }
   },
   { timestamps: true }
 );
 
+transactionSchema.index(
+  { buyer: 1, listing: 1, status: 1 },
+  { partialFilterExpression: { status: { $in: ["pending", "awaiting_confirmation", "paid", "completed"] } } }
+);
+
 const Transaction = mongoose.model("Transaction", transactionSchema);
 
 module.exports = { Transaction };
-

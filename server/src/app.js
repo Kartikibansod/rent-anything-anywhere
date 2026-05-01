@@ -1,5 +1,11 @@
 const cors = require("cors");
 const express = require("express");
+let mongoSanitize;
+try {
+  mongoSanitize = require("express-mongo-sanitize");
+} catch {
+  mongoSanitize = null;
+}
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const morgan = require("morgan");
@@ -15,6 +21,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 
 const allowedOrigins = new Set([
   "http://localhost:5173",
@@ -26,6 +33,19 @@ const allowedOrigins = new Set([
 
 function isLocalDevOrigin(origin = "") {
   return /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+}
+
+// Blocks Mongo operator injection in body/query/params while preserving normal values.
+function sanitizeMongo(value) {
+  if (!value || typeof value !== "object") return value;
+  for (const key of Object.keys(value)) {
+    if (key.startsWith("$") || key.includes(".")) {
+      delete value[key];
+      continue;
+    }
+    sanitizeMongo(value[key]);
+  }
+  return value;
 }
 
 function createApp() {
@@ -43,6 +63,13 @@ function createApp() {
   app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
   app.use(express.json({ limit: "5mb" }));
   app.use(express.urlencoded({ extended: true }));
+  if (mongoSanitize) app.use(mongoSanitize());
+  app.use((req, res, next) => {
+    sanitizeMongo(req.body);
+    sanitizeMongo(req.query);
+    sanitizeMongo(req.params);
+    next();
+  });
   app.use(morgan(env.nodeEnv === "production" ? "combined" : "dev"));
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
 
@@ -52,6 +79,7 @@ function createApp() {
   app.use("/api/listings", listingRoutes);
   app.use("/api/bookings", bookingRoutes);
   app.use("/api/messages", messageRoutes);
+  app.use("/api/ai", aiRoutes);
   app.use("/api", paymentRoutes);
   app.use("/api/reviews", reviewRoutes);
   app.use("/api/reports", reportRoutes);

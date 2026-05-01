@@ -1,5 +1,6 @@
 const express = require("express");
 const { Report } = require("../models/Report");
+const { Listing } = require("../models/Listing");
 const { authenticate } = require("../middleware/auth");
 const { asyncHandler } = require("../utils/asyncHandler");
 
@@ -34,11 +35,21 @@ router.post(
       type,
       reported,
       typeRef: isUserReport ? "User" : "Listing",
-      reason: req.body.reason
+      reason: req.body.reason,
+      description: req.body.description
     });
+    if (!isUserReport) {
+      const count = await Report.countDocuments({ type: "listing", reported, status: "pending" });
+      if (count >= 3) {
+        await Listing.findByIdAndUpdate(reported, {
+          status: "inactive",
+          "moderation.isFlagged": true,
+          "moderation.state": "under_review"
+        });
+      }
+    }
     res.status(201).json({ report });
   })
 );
 
 module.exports = router;
-

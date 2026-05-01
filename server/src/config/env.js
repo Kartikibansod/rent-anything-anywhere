@@ -7,8 +7,8 @@ const env = {
   port: process.env.PORT || 5001,
   serverUrl: process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5001}`,
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
-  mongoUri: process.env.MONGO_URI,
-  jwtSecret: process.env.JWT_SECRET,
+  mongoUri: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/rent_anything_anywhere",
+  jwtSecret: process.env.JWT_SECRET || "dev_rent_anything_anywhere_secret_change_me",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
@@ -26,6 +26,10 @@ const env = {
   },
   openai: {
     apiKey: process.env.OPENAI_API_KEY
+  },
+  grok: {
+    apiKey: process.env.GROK_API_KEY,
+    baseUrl: process.env.GROK_BASE_URL || "https://api.x.ai/v1"
   },
   smtp: {
     host: process.env.SMTP_HOST,
@@ -46,6 +50,10 @@ const env = {
   }
 };
 
+function smtpConfigured() {
+  return Boolean(env.smtp.host && env.smtp.user && env.smtp.pass);
+}
+
 function assertRequiredEnv() {
   const missing = [];
   if (!env.mongoUri) missing.push("MONGO_URI");
@@ -57,3 +65,16 @@ module.exports = env;
 module.exports.env = env;
 module.exports.assertRequiredEnv = assertRequiredEnv;
 module.exports.PORT = env.port;
+module.exports.smtpConfigured = smtpConfigured;
+module.exports.hasUsableGoogleCredentials = function hasUsableGoogleCredentials() {
+  const clientId = String(env.google.clientId || "").trim();
+  const clientSecret = String(env.google.clientSecret || "").trim();
+  return Boolean(
+    clientId
+      && clientSecret
+      && !clientId.includes("*")
+      && !clientSecret.includes("*")
+      && !clientId.includes("your_")
+      && !clientSecret.includes("your_")
+  );
+};

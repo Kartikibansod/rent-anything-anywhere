@@ -65,7 +65,8 @@ const listingSchema = new mongoose.Schema(
     description: {
       type: String,
       trim: true,
-      maxlength: 3000
+      minlength: 20,
+      maxlength: 500
     },
     location: {
       type: {
@@ -95,9 +96,11 @@ const listingSchema = new mongoose.Schema(
         message: String,
         status: {
           type: String,
-          enum: ["pending", "accepted", "rejected"],
+          enum: ["pending", "accepted", "rejected", "countered", "expired"],
           default: "pending"
         },
+        counterPrice: Number,
+        expiresAt: Date,
         createdAt: {
           type: Date,
           default: Date.now
@@ -107,16 +110,33 @@ const listingSchema = new mongoose.Schema(
     moderation: {
       isFlagged: { type: Boolean, default: false },
       reasons: [String],
-      state: { type: String, enum: ["live", "under_review"], default: "live" }
+      rejectionReason: String,
+      state: { type: String, enum: ["live", "under_review", "pending_first_approval", "rejected"], default: "live" }
     },
     status: {
       type: String,
-      enum: ["active", "sold", "rented", "inactive"],
+      enum: ["active", "sold", "rented", "inactive", "expired", "pending_approval"],
       default: "active"
+    },
+    expiresAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     },
     viewCount: {
       type: Number,
       default: 0
+    },
+    aiPriceEstimate: {
+      sellPrice: Number,
+      rentPerDay: Number,
+      confidence: String,
+      reasoning: String,
+      marketAnalysis: String,
+      pricingReasoning: String,
+      conditionScore: Number,
+      actualCondition: String,
+      warning: String,
+      appliedAt: Date
     }
   },
   { timestamps: true }

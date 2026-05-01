@@ -22,7 +22,7 @@ export function ListingDetail() {
   const [shareOpen, setShareOpen] = useState(false);
   const [priceHistory, setPriceHistory] = useState([]);
   const [reportOpen, setReportOpen] = useState(false);
-  const [reportReason, setReportReason] = useState("Fake listing");
+  const [reportReason, setReportReason] = useState("Fake item");
 
   useEffect(() => {
     api
@@ -108,7 +108,7 @@ export function ListingDetail() {
   return (
     <div className="space-y-8">
       <div className="text-sm text-slate-500">
-        <Link to="/feed" className="hover:text-violet-700">Home</Link> {" > "}
+        <Link to="/" className="hover:text-violet-700">Home</Link> {" > "}
         <span>{listing.category}</span> {" > "}
         <span className="text-slate-700">{listing.title}</span>
       </div>
@@ -146,11 +146,25 @@ export function ListingDetail() {
           </span>
         </div>
         <p className="mt-2 text-sm text-slate-600">{listing.condition} · {listing.location?.address}</p>
-        {listing.itemAge ? <p className="mt-2 text-sm font-semibold text-slate-700">Age: {listing.itemAge}</p> : null}
+        {listing.itemAge ? <p className="mt-2 text-sm font-semibold text-slate-700">Age of item: {listing.itemAge}</p> : null}
         {listing.moderation?.state === "under_review" ? <p className="mt-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">Under review</p> : null}
         {listing.conditionAiReasoning ? <p className="mt-2 text-sm text-slate-600">AI condition note: {listing.conditionAiReasoning}</p> : null}
-        {listing.conditionDescription ? <p className="mt-2 text-sm text-slate-600">{listing.conditionDescription}</p> : null}
-        <p className="mt-5 leading-7 text-slate-700">{listing.description}</p>
+        <div className="mt-5 rounded-[24px] bg-white/70 p-4">
+          <h2 className="font-black text-slate-950">About this item</h2>
+          <p className="mt-2 leading-7 text-slate-700">{listing.description}</p>
+          {listing.conditionDescription ? (
+            <div className="mt-4 border-t border-slate-100 pt-3">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">Condition details</p>
+              <p className="mt-1 text-sm text-slate-700">{listing.conditionDescription}</p>
+            </div>
+          ) : null}
+          {listing.itemAge ? (
+            <div className="mt-3">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">Age of item</p>
+              <p className="mt-1 text-sm text-slate-700">{listing.itemAge}</p>
+            </div>
+          ) : null}
+        </div>
 
         <div className="mt-5 rounded-[24px] bg-white/70 p-4">
           <Link to={`/profile/${listing.owner?._id}`} className="flex items-center justify-between">
@@ -230,7 +244,7 @@ export function ListingDetail() {
         <h2 className="mb-4 text-xl font-black">Similar listings</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {similar.map((item) => (
-            <Link key={item._id} to={`/listing/${item._id}`} className="rounded-2xl border border-slate-200 bg-white p-3">
+          <Link key={item._id} to={`/listings/${item._id}`} className="rounded-2xl border border-slate-200 bg-white p-3">
               <img src={item.photos?.[0]?.url} alt={item.title} className="mb-2 aspect-[4/3] w-full rounded-xl object-cover" />
               <p className="line-clamp-1 font-semibold">{item.title}</p>
             </Link>
@@ -259,7 +273,7 @@ export function ListingDetail() {
               <button type="button" onClick={() => setReportOpen(false)}><X size={16} /></button>
             </div>
             <div className="space-y-2">
-              {["Fake listing", "Wrong price", "Spam", "Inappropriate content"].map((reason) => (
+              {["Fake item", "Wrong price", "Spam", "Inappropriate content", "Item already sold", "Other"].map((reason) => (
                 <button key={reason} className={`w-full rounded-xl border px-3 py-2 text-left ${reportReason === reason ? "border-violet-600 bg-violet-50" : "border-slate-200"}`} onClick={() => setReportReason(reason)} type="button">{reason}</button>
               ))}
             </div>

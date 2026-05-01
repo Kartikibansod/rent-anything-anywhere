@@ -9,6 +9,21 @@ dotenv.config({ path: path.join(__dirname, "../../.env") });
 const BASE_LAT = 16.705;
 const BASE_LNG = 74.2433;
 const randomCoord = (base, range = 0.04) => base + (Math.random() - 0.5) * range;
+const buildPhotoSet = (item) => {
+  const [first] = item.photos || [];
+  const seed = encodeURIComponent(`${item.title} ${item.category}`);
+  const extras = [1, 2, 3, 4].map((index) => ({
+    url: `https://source.unsplash.com/900x700/?${seed}&sig=${index}`,
+    publicId: `${first?.publicId || item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index}`
+  }));
+  return [first, ...extras].filter(Boolean).slice(0, 5);
+};
+const ensureDescription = (item) => {
+  const description = item.description || `${item.title} available near Kolhapur.`;
+  return description.length >= 20
+    ? description
+    : `${description} Well maintained and ready for student use.`;
+};
 
 const listings = [
   { title: "Atomic Habits by James Clear", type: "sell", askingPrice: 280, category: "Books", condition: "like_new", conditionDescription: "Read once, no highlights, spine intact", itemAge: "6 months", description: "Bestseller on habits.", photos: [{ url: "https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg", publicId: "atomic-habits" }] },
@@ -56,24 +71,50 @@ const listings = [
 
 async function seed() {
   await connectDB();
-  const owner = await User.findOneAndUpdate(
-    { email: "seed.owner@raa.local" },
-    { name: "Seed Owner", password: "Password@123", userType: "local" },
-    { upsert: true, new: true }
-  );
-  await Listing.deleteMany({ owner: owner._id });
+  let owner = await User.findOne({ email: "seed.owner@raa.local" }).select("+password");
+  if (!owner) owner = new User({ email: "seed.owner@raa.local" });
+  owner.name = "Seed Owner";
+  owner.password = owner.password || "Password@123";
+  owner.userType = "local";
+  owner.locationText = "Kolhapur";
+  owner.location = { type: "Point", coordinates: [BASE_LNG, BASE_LAT] };
+  owner.isEmailVerified = true;
+  owner.rating = { average: 4.7, count: 34 };
+  await owner.save();
+
+  let testUser = await User.findOne({ email: "test@gmail.com" }).select("+password");
+  if (!testUser) testUser = new User({ email: "test@gmail.com" });
+  testUser.name = "Test User";
+  testUser.password = "test1234";
+  testUser.userType = "local";
+  testUser.locationText = "Kolhapur";
+  testUser.location = { type: "Point", coordinates: [BASE_LNG, BASE_LAT] };
+  testUser.isEmailVerified = true;
+  testUser.rating = { average: 4.9, count: 12 };
+  await testUser.save();
+
+  await Listing.deleteMany({});
   const payload = listings.map((item) => ({
     ...item,
     owner: owner._id,
-    location: { type: "Point", coordinates: [randomCoord(BASE_LNG), randomCoord(BASE_LAT)] }
+    description: ensureDescription(item),
+    photos: buildPhotoSet(item),
+    location: { type: "Point", coordinates: [randomCoord(BASE_LNG), randomCoord(BASE_LAT)], address: "Kolhapur campus area" },
+    status: "active",
+    moderation: { isFlagged: false, reasons: [], state: "live" }
   }));
   await Listing.insertMany(payload);
   console.log(`Seeded ${payload.length} listings near Kolhapur.`);
+  console.log("Test login: test@gmail.com / test1234");
   process.exit(0);
 }
 
-seed().catch((error) => {
-  console.error("Seeding failed");
-  console.error(error);
-  process.exit(1);
-});
+if (process.env.RUN_SEED === "true") {
+  seed().catch((error) => {
+    console.error("Seeding failed");
+    console.error(error);
+    process.exit(1);
+  });
+} else {
+  console.log("Seed script disabled. Set RUN_SEED=true to seed demo listings.");
+}

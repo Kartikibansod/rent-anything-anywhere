@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMyBookings, createReview, checkReviewEligibility } from "../lib/api";
+import { api, getErrorMessage } from "../lib/api";
 import { useUser } from "../lib/userContext";
 import { getImageUrl } from "../lib/listingImage";
 import { StarIcon } from "@heroicons/react/20/solid";
@@ -11,6 +12,7 @@ export const MyDeals = () => {
   const { user } = useUser();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
+  const [cashMeetups, setCashMeetups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reviewModal, setReviewModal] = useState({ open: false, transaction: null, listing: null });
@@ -22,7 +24,9 @@ export const MyDeals = () => {
     const fetchBookings = async () => {
       try {
         const data = await getMyBookings();
+        const meetupResponse = await api.get("/cash-meetups/my");
         setBookings(data);
+        setCashMeetups(meetupResponse.data.requests || []);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -56,6 +60,20 @@ export const MyDeals = () => {
     } catch (err) {
       console.error("Error checking eligibility:", err);
       alert("Failed to check review eligibility");
+    }
+  };
+
+  const updateCashMeetup = async (requestId, action) => {
+    try {
+      if (action === "accept" || action === "reject") {
+        await api.patch(`/cash-meetups/${requestId}/status`, { action });
+      } else {
+        await api.patch(`/cash-meetups/${requestId}/confirm`);
+      }
+      const meetupResponse = await api.get("/cash-meetups/my");
+      setCashMeetups(meetupResponse.data.requests || []);
+    } catch (err) {
+      alert(getErrorMessage(err, "Could not update cash meetup"));
     }
   };
 
@@ -111,6 +129,44 @@ export const MyDeals = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">My Deals</h1>
+
+      {cashMeetups.length > 0 ? (
+        <div className="mb-8 space-y-4">
+          <h2 className="text-xl font-bold">Cash meetup requests</h2>
+          {cashMeetups.map((request) => {
+            const isSeller = request.seller?._id === user?._id;
+            const isBuyer = request.buyer?._id === user?._id;
+            return (
+              <div className="rounded-xl bg-white p-5 shadow-md" key={request._id}>
+                <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                  <div>
+                    <p className="font-semibold">{request.listing?.title}</p>
+                    <p className="text-sm text-gray-500">
+                      Buyer: {request.buyer?.name} · Seller: {request.seller?.name}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold capitalize text-blue-700">{request.status}</p>
+                    {request.status === "accepted" ? <p className="mt-1 text-sm text-gray-500">Meet up and exchange item. Both parties must confirm handoff.</p> : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {isSeller && request.status === "pending" ? (
+                      <>
+                        <button className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => updateCashMeetup(request._id, "accept")}>Accept</button>
+                        <button className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => updateCashMeetup(request._id, "reject")}>Decline</button>
+                      </>
+                    ) : null}
+                    {request.status === "accepted" && (isBuyer || isSeller) ? (
+                      <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" onClick={() => updateCashMeetup(request._id, "confirm")}>
+                        {isBuyer ? "I received the item" : "I received the cash"}
+                      </button>
+                    ) : null}
+                    {request.chatRoomId ? <button className="rounded-lg border px-4 py-2 text-sm font-semibold" onClick={() => navigate(`/chat/${request.chatRoomId}`)}>Open chat</button> : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       {bookings.length === 0 ? (
         <div className="text-center py-12">

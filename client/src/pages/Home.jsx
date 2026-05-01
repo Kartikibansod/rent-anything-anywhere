@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowRight, Bike, BookOpen, Dumbbell, Laptop, Search, Shirt, Sofa, Sparkles, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, PackageOpen, Search, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,13 +12,13 @@ import { getLocationWithFallback } from "../lib/location.js";
 import { useUser } from "../lib/userContext.jsx";
 
 const categories = [
-  ["Books", BookOpen, "#f97316"],
-  ["Electronics", Laptop, "#3b82f6"],
-  ["Furniture", Sofa, "#22c55e"],
-  ["Clothes", Shirt, "#ec4899"],
-  ["Cycles", Bike, "#06b6d4"],
-  ["Kitchenware", UtensilsCrossed, "#eab308"],
-  ["Sports gear", Dumbbell, "#ef4444"]
+  ["Books", "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"],
+  ["Electronics", "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400"],
+  ["Furniture", "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400"],
+  ["Clothes", "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400"],
+  ["Cycles", "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400"],
+  ["Kitchenware", "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400"],
+  ["Sports gear", "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400"]
 ];
 
 export function Home() {
@@ -78,9 +78,6 @@ export function Home() {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(130deg,#4f46e5_0%,#7c3aed_35%,#0ea5e9_100%)]" />
-        <motion.div className="absolute -left-16 top-10 -z-10 h-44 w-44 rounded-full bg-white/20 blur-3xl" animate={{ y: [0, -16, 0] }} transition={{ duration: 8, repeat: Infinity }} />
-        <motion.div className="absolute right-10 top-16 -z-10 h-52 w-52 rounded-full bg-cyan-300/20 blur-3xl" animate={{ y: [0, 12, 0] }} transition={{ duration: 10, repeat: Infinity }} />
-        <motion.div className="absolute bottom-12 left-1/3 -z-10 h-40 w-40 rounded-full bg-fuchsia-300/20 blur-3xl" animate={{ y: [0, -10, 0] }} transition={{ duration: 9, repeat: Infinity }} />
         <motion.p className="mx-auto inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur" whileHover={{ scale: 1.03 }}>
           <Sparkles size={16} />
           Student and local marketplace
@@ -129,19 +126,18 @@ export function Home() {
             Explore all <ArrowRight size={17} />
           </button>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-7">
-          {categories.map(([category, Icon, bg]) => (
+        <div className="hide-scrollbar flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-7 lg:overflow-visible">
+          {categories.map(([category, image]) => (
             <motion.button
-              className="glass rounded-[28px] p-5 text-left transition"
+              className="group relative h-40 w-52 shrink-0 overflow-hidden rounded-[28px] text-left shadow-lg transition lg:w-auto"
               key={category}
               variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
               whileHover={{ y: -8, scale: 1.03 }}
-              onClick={() => navigate(`/search?category=${encodeURIComponent(category)}&lat=${coords.lat}&lng=${coords.lng}`)}
+              onClick={() => navigate(`/buy?category=${encodeURIComponent(category)}`)}
             >
-              <span className="mb-4 grid h-12 w-12 place-items-center rounded-2xl text-white shadow-lg" style={{ backgroundColor: bg }}>
-                <Icon size={22} />
-              </span>
-              <span className="font-bold">{category}</span>
+              <img className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-110" src={image} alt="" />
+              <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+              <span className="absolute bottom-4 left-4 right-4 text-lg font-black text-white">{category}</span>
             </motion.button>
           ))}
         </div>
@@ -173,8 +169,9 @@ export function Home() {
             ))}
             {listings.length === 0 ? (
               <div className="glass w-full rounded-[32px] p-10 text-center text-slate-600">
-                <Sparkles className="mx-auto mb-3 text-indigo-600" />
-                No listings yet. Be the first to post something useful nearby.
+                <PackageOpen className="mx-auto mb-3 text-indigo-600" size={42} />
+                <p className="text-lg font-black text-slate-800">No listings yet</p>
+                <p className="mt-2 text-sm">Be the first to post something!</p>
               </div>
             ) : null}
           </div>
@@ -185,6 +182,7 @@ export function Home() {
         const categoryListings = listings
           .filter((listing) => listing.category === category)
           .slice(0, 4);
+        if (categoryListings.length === 0) return null;
         return (
           <section key={category}>
             <div className="mb-5 flex items-center justify-between">
@@ -207,11 +205,6 @@ export function Home() {
                   <ListingCard listing={listing} onSave={save} />
                 </div>
               ))}
-              {categoryListings.length === 0 ? (
-                <div className="glass w-full rounded-[24px] p-6 text-sm text-slate-600">
-                  No {category.toLowerCase()} listings found nearby.
-                </div>
-              ) : null}
             </div>
           </section>
         );

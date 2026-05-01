@@ -1,4 +1,5 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const {
   login,
   me,
@@ -18,11 +19,22 @@ const { Transaction } = require("../models/Transaction");
 const { User } = require("../models/User");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { env } = require("../config/env");
+const { hasUsableGoogleCredentials } = require("../config/env");
 const passport = require("../config/passport");
 const twilio = require("twilio");
 const { createOtp, verifyOtp } = require("../services/otpService");
+const { signAuthToken } = require("../utils/token");
 
 const authRouter = express.Router();
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: true, legacyHeaders: false });
+const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 3, standardHeaders: true, legacyHeaders: false });
+
+authRouter.get("/config", (req, res) => {
+  res.json({
+    googleConfigured: hasUsableGoogleCredentials(),
+    openaiConfigured: Boolean(env.openai.apiKey)
+  });
+});
 
 function ensureGoogleStrategy(req, res, next) {
   if (passport._strategy("google")) return next();
@@ -31,35 +43,48 @@ function ensureGoogleStrategy(req, res, next) {
   });
 }
 
-authRouter.post("/register", register);
+authRouter.post("/register", registerLimiter, register);
 authRouter.post("/register/verify-otp", verifyRegistrationOtp);
-authRouter.post("/login", login);
+authRouter.post("/login", loginLimiter, login);
 authRouter.post("/login/verify-otp", verifyLoginOtp);
 authRouter.post("/otp/resend", resendOtp);
 
+authRouter.post("/send-otp", asyncHandler(async (req, res) => {
+  const { email, purpose = "login" } = req.body;
+  if (!["login", "register"].includes(purpose)) return res.status(400).json({ message: "Invalid OTP purpose" });
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const otp = await createOtp({ user: user._id, email: user.email, purpose });
+  res.json({ requiresOtp: true, purpose, userId: user._id, expiresAt: otp.expiresAt });
+}));
+
+authRouter.post("/verify-otp", asyncHandler(async (req, res) => {
+  const { userId, otp, purpose = "login" } = req.body;
+  if (!["login", "register"].includes(purpose)) return res.status(400).json({ message: "Invalid OTP purpose" });
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const result = await verifyOtp({ user: user._id, purpose, otp });
+  if (!result.ok) return res.status(400).json({ message: result.reason });
+  if (purpose === "register") user.isEmailVerified = true;
+  user.lastLoginAt = new Date();
+  await user.save({ validateBeforeSave: false });
+  sendAuthResponse(res, user);
+}));
+
 authRouter.get("/google", ensureGoogleStrategy, passport.authenticate("google", { scope: ["profile", "email"] }));
-authRouter.get("/google/callback", ensureGoogleStrategy, passport.authenticate("google", { session: false, failureRedirect: `${env.clientUrl}/` }), async (req, res) => {
+authRouter.get("/google/callback", ensureGoogleStrategy, passport.authenticate("google", { session: false, failureRedirect: `${env.clientUrl}/login` }), async (req, res) => {
   if (!req.user.isEmailVerified) {
-    return res.redirect(`${env.clientUrl}/?error=google_email_not_verified`);
+    return res.redirect(`${env.clientUrl}/login?error=google_email_not_verified`);
   }
-  if (req.user.googleOnboardingPending) {
-    return res.redirect(`${env.clientUrl}/?userId=${req.user._id}`);
-  }
-  const otp = await createOtp({ user: req.user._id, email: req.user.email, purpose: "login_2fa" });
-  res.redirect(`${env.clientUrl}/?googleOtpUserId=${req.user._id}&purpose=login_2fa&otpExpiresAt=${encodeURIComponent(otp.expiresAt.toISOString())}`);
+  const token = signAuthToken(req.user);
+  res.redirect(`${env.clientUrl}/auth/callback?token=${encodeURIComponent(token)}`);
 });
 
 authRouter.post("/google/user-type", asyncHandler(async (req, res) => {
   const { userId, userType } = req.body;
   const user = await User.findByIdAndUpdate(userId, { userType, googleOnboardingPending: false }, { new: true });
   if (!user) return res.status(404).json({ message: "User not found" });
-  const otp = await createOtp({ user: user._id, email: user.email, purpose: "login_2fa" });
-  res.json({
-    requiresOtp: true,
-    purpose: "login_2fa",
-    userId: user._id,
-    expiresAt: otp.expiresAt
-  });
+  sendAuthResponse(res, user);
 }));
 
 authRouter.get("/me", authenticate, me);

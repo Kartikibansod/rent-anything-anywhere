@@ -1,5 +1,3 @@
-const { env } = require("../config/env");
-
 const systemPrompt = `You are an expert Indian marketplace pricing analyst for student hostel items.
 Estimate resale and rental value based on:
 - Indian pricing (Amazon, Flipkart, OLX)
@@ -14,27 +12,43 @@ Return ONLY JSON:
   "confidence":string
 }`;
 
+function getGrokApiKey() {
+  return process.env.GROK_API_KEY?.trim() || "";
+}
+
+function getGrokBaseUrl() {
+  return "https://api.x.ai/v1";
+}
+
 function grokConfigured() {
-  return Boolean(env.grok.apiKey);
+  const apiKey = getGrokApiKey();
+  return Boolean(apiKey && apiKey.startsWith("xai-"));
 }
 
 async function callGrok(messages) {
-  if (!grokConfigured()) {
+  const apiKey = getGrokApiKey();
+  if (!apiKey) {
     const error = new Error("AI estimator not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+  if (!apiKey.startsWith("xai-")) {
+    const error = new Error("Grok API key invalid. Key must start with xai-. Get correct key from console.x.ai");
     error.statusCode = 503;
     throw error;
   }
 
   // xAI Grok exposes an OpenAI-compatible chat completions API.
-  const response = await fetch(`${env.grok.baseUrl}/chat/completions`, {
+  const response = await fetch(`${getGrokBaseUrl()}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${env.grok.apiKey}`
+      Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
       model: "grok-3-mini",
       temperature: 0.2,
+      max_tokens: 500,
       messages
     })
   });

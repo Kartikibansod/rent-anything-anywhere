@@ -122,6 +122,10 @@ const listingSchema = new mongoose.Schema(
       type: Date,
       default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     },
+    expirationNotice: {
+      day25Sent: { type: Boolean, default: false },
+      sentAt: Date
+    },
     viewCount: {
       type: Number,
       default: 0

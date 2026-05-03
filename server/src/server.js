@@ -4,6 +4,7 @@ const { PORT } = require("./config/env");
 const setupSocket = require("./socket");
 const http = require("http");
 const { Server } = require("socket.io");
+const { notifyExpiringListings } = require("./services/notificationService");
 
 const server = http.createServer(app);
 
@@ -27,6 +28,10 @@ connectDB()
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📡 Socket.io ready`);
     });
+    notifyExpiringListings().catch((error) => console.error("Expiry notification check failed:", error.message));
+    setInterval(() => {
+      notifyExpiringListings().catch((error) => console.error("Expiry notification check failed:", error.message));
+    }, 24 * 60 * 60 * 1000);
   })
   .catch((err) => {
     console.error("Failed to start server:", err);

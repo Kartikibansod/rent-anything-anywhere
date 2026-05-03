@@ -9,7 +9,7 @@ if (hasUsableGoogleCredentials()) {
     {
       clientID: String(env.google.clientId || "").trim(),
       clientSecret: String(env.google.clientSecret || "").trim(),
-      callbackURL: `${env.serverUrl}/api/auth/google/callback`
+      callbackURL: "http://localhost:5001/api/auth/google/callback"
     },
     async (accessToken, refreshToken, profile, done) => {
       try {

@@ -141,8 +141,8 @@ export function ListingDetail() {
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-600">
           <span className="inline-flex items-center gap-1"><Eye size={14} /> {listing.viewCount || 0} views</span>
           <span>Posted {postedAgo(listing.createdAt)}</span>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${listing.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-            {listing.status === "active" ? "Available" : "Sold"}
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${listing.status === "active" ? "bg-emerald-100 text-emerald-700" : listing.status === "sold" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"}`}>
+            {listing.status === "active" ? "Available" : listing.status === "sold" ? "Sold" : listing.status}
           </span>
         </div>
         <p className="mt-2 text-sm text-slate-600">{listing.condition} · {listing.location?.address}</p>

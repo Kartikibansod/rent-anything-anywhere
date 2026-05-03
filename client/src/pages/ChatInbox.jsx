@@ -11,6 +11,7 @@ export function ChatInbox() {
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState("");
   const [messages, setMessages] = useState([]);
+  const [activeCashMeetup, setActiveCashMeetup] = useState(null);
   const [text, setText] = useState("");
   const fileRef = useRef(null);
 
@@ -61,6 +62,20 @@ export function ChatInbox() {
     if (!a || !b || !user?._id) return "";
     return a === user._id ? b : a;
   }, [activeId, user?._id]);
+  const listingId = useMemo(() => activeId.split(":")[2] || "", [activeId]);
+
+  useEffect(() => {
+    if (!activeId || !listingId || listingId === "general") {
+      setActiveCashMeetup(null);
+      return;
+    }
+    api.get("/cash-meetups/my")
+      .then(({ data }) => {
+        const request = (data.requests || []).find((item) => item.status === "accepted" && String(item.listing?._id) === String(listingId));
+        setActiveCashMeetup(request || null);
+      })
+      .catch(() => setActiveCashMeetup(null));
+  }, [activeId, listingId]);
 
   async function send(payload) {
     if (!activeId) return;
@@ -84,6 +99,16 @@ export function ChatInbox() {
     };
     reader.readAsDataURL(file);
   }
+
+  async function confirmCashMeetup() {
+    if (!activeCashMeetup?._id) return;
+    await api.patch(`/cash-meetups/${activeCashMeetup._id}/confirm`);
+    const { data } = await api.get("/cash-meetups/my");
+    const request = (data.requests || []).find((item) => item._id === activeCashMeetup._id);
+    setActiveCashMeetup(request || null);
+  }
+
+  const cashBanner = messages.find((msg) => msg.type === "system" && msg.content?.startsWith("Cash meetup agreed for"));
 
   return (
     <div className="grid h-[calc(100vh-7rem)] grid-cols-1 overflow-hidden rounded-3xl border border-slate-200 bg-white lg:grid-cols-[340px_1fr]">
@@ -123,6 +148,17 @@ export function ChatInbox() {
           </div>
         </header>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+          {cashBanner ? (
+            <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">{cashBanner.content}</div>
+          ) : null}
+          {activeCashMeetup ? (
+            <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3">
+              <button className="rounded-full border px-3 py-2 text-xs font-semibold" type="button" onClick={() => coords && send({ content: `https://maps.google.com/?q=${coords.lat},${coords.lng}`, type: "text" })}>Share location</button>
+              <button className="rounded-full bg-violet-600 px-3 py-2 text-xs font-semibold text-white" type="button" onClick={confirmCashMeetup}>
+                {String(activeCashMeetup.buyer?._id) === String(user?._id) ? "Confirm I received item" : "Confirm I received cash"}
+              </button>
+            </div>
+          ) : null}
           {messages.map((msg) => (
             <div key={msg._id} className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${String(msg.sender?._id || msg.sender) === String(user?._id) ? "ml-auto bg-violet-600 text-white" : "bg-slate-100 text-slate-800"}`}>
               {msg.type === "image" && msg.photos?.[0] ? <img src={msg.photos[0]} alt="shared" className="mb-2 max-h-56 rounded-xl" /> : null}

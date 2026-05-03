@@ -1,5 +1,5 @@
 import React from "react";
-import { Camera, Check, LocateFixed, MapPin, Sparkles, Package, Tag } from "lucide-react";
+import { Camera, Check, LocateFixed, MapPin, Search, Sparkles, Package, Tag, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -40,12 +40,20 @@ export function CreateListing() {
   const [estimate, setEstimate] = useState(null);
   const [aiCondition, setAiCondition] = useState(null);
   const [grokConfigured, setGrokConfigured] = useState(false);
+  const [grokMessage, setGrokMessage] = useState("");
   const [isEstimating, setIsEstimating] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [areaSearch, setAreaSearch] = useState("");
+  const [areaSuggestions, setAreaSuggestions] = useState([]);
+  const [isSearchingArea, setIsSearchingArea] = useState(false);
+  const [locationHelp, setLocationHelp] = useState("");
 
   useEffect(() => {
     api.get("/ai/config")
-      .then(({ data }) => setGrokConfigured(Boolean(data.grokConfigured)))
+      .then(({ data }) => {
+        setGrokConfigured(Boolean(data.grokConfigured));
+        setGrokMessage(data.message || "");
+      })
       .catch(() => setGrokConfigured(false));
   }, []);
 
@@ -61,6 +69,31 @@ export function CreateListing() {
 
   function update(event) {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+  }
+
+  function validateStep(nextStep = step) {
+    if (nextStep >= 2 && !form.title.trim()) return "Title is required";
+    if (nextStep >= 2 && form.description.trim().length < 20) return "Description must be at least 20 characters";
+    if (nextStep >= 4) {
+      if (type === "sell" && Number(form.askingPrice) <= 0) return "Sell price must be greater than 0";
+      if (type === "rent" && Number(form.daily) <= 0) return "Daily rent price must be greater than 0";
+    }
+    return "";
+  }
+
+  function goNext() {
+    const message = validateStep(step + 1);
+    if (message) {
+      setError(message);
+      toast.error(message);
+      return;
+    }
+    setError("");
+    setStep(Math.min(5, step + 1));
+  }
+
+  function removePhoto(indexToRemove) {
+    setPhotos((current) => current.filter((_, index) => index !== indexToRemove));
   }
 
   async function estimatePrice() {
@@ -98,6 +131,7 @@ export function CreateListing() {
       return;
     }
     setIsLocating(true);
+    setLocationHelp("");
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const lat = position.coords.latitude.toFixed(6);
@@ -107,12 +141,39 @@ export function CreateListing() {
         setIsLocating(false);
         toast.success("Location added");
       },
-      () => {
+      (err) => {
         setIsLocating(false);
-        toast.error("Could not get your location");
+        if (err.code === 1) setLocationHelp("To use your location:\nClick the location icon in your Chrome address bar\n→ Select Allow → Click Try Again");
+        else if (err.code === 2) toast.error("Location unavailable. Enter address manually");
+        else if (err.code === 3) toast.error("Location timed out. Try again");
+        else toast.error("Could not get your location");
       },
-      { enableHighAccuracy: true, timeout: 12000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
     );
+  }
+
+  async function searchArea(event) {
+    event.preventDefault();
+    if (!areaSearch.trim()) return;
+    setIsSearchingArea(true);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(areaSearch)}&format=json&limit=5`);
+      const data = await response.json();
+      setAreaSuggestions(Array.isArray(data) ? data : []);
+      if (!data.length) toast.error("No matching areas found");
+    } catch {
+      toast.error("Could not search area");
+    } finally {
+      setIsSearchingArea(false);
+    }
+  }
+
+  function selectArea(place) {
+    const lat = Number(place.lat).toFixed(6);
+    const lng = Number(place.lon).toFixed(6);
+    setForm((current) => ({ ...current, lat, lng, address: place.display_name || areaSearch }));
+    setAreaSearch(place.display_name || areaSearch);
+    setAreaSuggestions([]);
   }
 
   async function scoreMyItem() {
@@ -134,6 +195,12 @@ export function CreateListing() {
 
   async function submit() {
     setError("");
+    const validationMessage = validateStep(5);
+    if (validationMessage) {
+      setError(validationMessage);
+      toast.error(validationMessage);
+      return;
+    }
     setIsSubmitting(true);
     const body = new FormData();
     body.append("type", type);
@@ -145,7 +212,9 @@ export function CreateListing() {
     body.append("description", form.description);
     if (aiCondition?.score) body.append("conditionScore", String(aiCondition.score));
     if (aiCondition?.reasoning) body.append("conditionAiReasoning", aiCondition.reasoning);
-    body.append("location", JSON.stringify({ type: "Point", coordinates: [Number(form.lng), Number(form.lat)], address: form.address }));
+    const lat = Number(form.lat) || 16.7050;
+    const lng = Number(form.lng) || 74.2433;
+    body.append("location", JSON.stringify({ type: "Point", coordinates: [lng, lat], address: form.address || "Kolhapur" }));
     photos.forEach((photo) => body.append("photos", photo));
     if (type === "sell") body.append("askingPrice", form.askingPrice);
     if (type === "rent") {
@@ -160,7 +229,8 @@ export function CreateListing() {
       toast.success("Listing published");
       navigate(`/listings/${data.listing._id}`);
     } catch (err) {
-      const message = getErrorMessage(err);
+      const details = err.response?.data?.errors;
+      const message = Array.isArray(details) && details.length ? details.join(", ") : getErrorMessage(err);
       setError(message);
       toast.error(message);
     } finally {
@@ -232,6 +302,7 @@ export function CreateListing() {
 
         {step === 2 ? (
           <div>
+            <p className="mb-3 text-sm font-bold text-slate-600">{photos.length}/5 photos added</p>
             <div {...getRootProps()} className={`grid min-h-64 cursor-pointer place-items-center rounded-[32px] border-2 border-dashed p-8 text-center transition ${isDragActive ? "border-indigo-500 bg-indigo-50" : "border-slate-300 bg-white/60"}`}>
               <input {...getInputProps()} />
               <div>
@@ -241,14 +312,26 @@ export function CreateListing() {
               </div>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-5">
-              {previews.map(({ file, url }) => <img className="aspect-square rounded-3xl object-cover" key={file.name} src={url} alt={file.name} />)}
+              {previews.map(({ file, url }, index) => (
+                <div className="relative" key={`${file.name}-${index}`}>
+                  <img className="aspect-square w-full rounded-3xl object-cover" src={url} alt={file.name} />
+                  <button
+                    className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-red-600 text-white shadow-lg"
+                    type="button"
+                    onClick={() => removePhoto(index)}
+                    aria-label={`Remove photo ${index + 1}`}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         ) : null}
 
         {step === 3 ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            {grokConfigured ? <button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-60 sm:col-span-2" onClick={estimatePrice} disabled={isEstimating}><Sparkles size={16} />{isEstimating ? "Estimating price..." : "AI Estimate Price"}</button> : <button type="button" className="cursor-not-allowed rounded-xl border px-3 py-2 text-sm font-semibold text-slate-400 sm:col-span-2" disabled title="GROK_API_KEY is not configured"><Sparkles size={16} className="inline" /> AI Estimator (API key required)</button>}
+            {grokConfigured ? <button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-60 sm:col-span-2" onClick={estimatePrice} disabled={isEstimating}><Sparkles size={16} />{isEstimating ? "Estimating price..." : "AI Estimate Price"}</button> : <div className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:col-span-2">AI Estimator needs setup. Add valid GROK_API_KEY to server/.env <a className="underline" href="https://console.x.ai" target="_blank" rel="noreferrer">console.x.ai</a></div>}
             {estimate ? (
               <div className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-900 sm:col-span-2">
                 <p className="font-bold">AI estimate</p>
@@ -285,6 +368,33 @@ export function CreateListing() {
               <LocateFixed size={20} />
               {isLocating ? "Finding your location..." : "Use my current location"}
             </button>
+            {locationHelp ? (
+              <div className="whitespace-pre-line rounded-[24px] border border-blue-100 bg-blue-50 p-4 text-sm font-semibold text-blue-900">
+                {locationHelp}
+                <button className="mt-3 block rounded-full bg-blue-600 px-4 py-2 text-xs font-bold text-white" type="button" onClick={useCurrentLocation}>Try Again</button>
+              </div>
+            ) : null}
+            <form className="relative" onSubmit={searchArea}>
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                className="w-full rounded-[22px] border border-slate-200 bg-white/90 px-11 py-3 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                placeholder="Type your area or address"
+                value={areaSearch}
+                onChange={(event) => setAreaSearch(event.target.value)}
+              />
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-60" type="submit" disabled={isSearchingArea}>
+                {isSearchingArea ? "Searching..." : "Search"}
+              </button>
+              {areaSuggestions.length ? (
+                <div className="absolute left-0 right-0 top-full z-[1000] mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                  {areaSuggestions.map((place) => (
+                    <button className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-slate-50" key={place.place_id} type="button" onClick={() => selectArea(place)}>
+                      {place.display_name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </form>
             <div className="h-96 overflow-hidden rounded-[32px] border border-white/70 shadow-sm">
               <MapContainer center={[Number(form.lat), Number(form.lng)]} zoom={12} className="h-full w-full">
                 <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -322,7 +432,7 @@ export function CreateListing() {
             Back
           </button>
           {step < 5 ? (
-            <button className="brand-gradient rounded-full px-6 py-3 font-bold text-white" onClick={() => setStep(Math.min(5, step + 1))}>
+            <button className="brand-gradient rounded-full px-6 py-3 font-bold text-white" onClick={goNext}>
               Next
             </button>
           ) : null}

@@ -18,12 +18,12 @@ export function ListingCard({ listing, onSave }) {
   return (
     <Link to={`/listings/${listing._id}`} className="block">
       <motion.article
-        className="group overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-lg transition hover:shadow-2xl hover:shadow-indigo-950/10"
-        whileHover={{ y: -8, scale: 1.015 }}
+        className="group overflow-hidden rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)] transition hover:shadow-[0_16px_34px_rgba(0,0,0,0.14)]"
+        whileHover={{ y: -6, scale: 1.01 }}
         transition={{ type: "spring", stiffness: 260, damping: 22 }}
         layout
       >
-        <div className="relative aspect-[4/3.4] overflow-hidden bg-slate-100">
+        <div className="relative aspect-[4/3.4] overflow-hidden rounded-t-2xl bg-slate-100">
           <img
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
             src={photo}
@@ -34,8 +34,8 @@ export function ListingCard({ listing, onSave }) {
             }}
           />
           <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-            <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-800 backdrop-blur">{listing.category}</span>
-            <span className={`rounded-full px-3 py-1 text-xs font-bold text-white backdrop-blur ${listing.type === "sell" ? "bg-emerald-600/90" : "bg-violet-600/90"}`}>{listingTypeLabel}</span>
+            <span className="rounded-full bg-violet-50/95 px-3 py-1 text-xs font-bold text-violet-700 backdrop-blur">{listing.category}</span>
+            <span className={`rounded-full px-3 py-1 text-xs font-bold backdrop-blur ${listing.type === "sell" ? "bg-emerald-50/95 text-emerald-700" : "bg-blue-50/95 text-blue-700"}`}>{listingTypeLabel}</span>
             {listing.moderation?.state === "under_review" ? <span className="rounded-full bg-amber-500/90 px-3 py-1 text-xs font-bold text-white">Under review</span> : null}
           </div>
           <motion.button
@@ -57,7 +57,7 @@ export function ListingCard({ listing, onSave }) {
         <div className="line-clamp-1 text-base font-semibold text-slate-900 hover:text-leaf">
           {listing.title}
         </div>
-        <p className={`mt-1 text-base font-bold ${listing.type === "sell" ? "text-emerald-600" : "text-violet-700"}`}>{price}</p>
+        <p className="mt-1 text-base font-bold text-[#7c3aed]">{price}</p>
         {shortDescription ? <p className="mt-2 line-clamp-2 text-sm text-slate-500">{shortDescription}</p> : null}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
           <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700">{listing.condition}</span>
@@ -91,7 +91,7 @@ export function ListingCard({ listing, onSave }) {
               Chat
             </Link>
             <Link
-              className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-white ${listing.type === "sell" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-violet-600 hover:bg-violet-700"}`}
+              className="brand-gradient inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-white"
               to={`/listings/${listing._id}`}
               onClick={(event) => event.stopPropagation()}
             >

@@ -144,8 +144,14 @@ export const MyDeals = () => {
                     <p className="text-sm text-gray-500">
                       Buyer: {request.buyer?.name} · Seller: {request.seller?.name}
                     </p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Item: {request.listing?.title} · Price: INR {Number(request.listing?.askingPrice || request.listing?.rentRates?.daily || 0).toLocaleString()} · Requested: {new Date(request.createdAt).toLocaleDateString()}
+                    </p>
                     <p className="mt-1 text-sm font-semibold capitalize text-blue-700">{request.status}</p>
+                    {isBuyer && request.status === "pending" ? <p className="mt-1 text-sm text-gray-500">Request sent! Waiting for seller to accept.</p> : null}
                     {request.status === "accepted" ? <p className="mt-1 text-sm text-gray-500">Meet up and exchange item. Both parties must confirm handoff.</p> : null}
+                    {isBuyer && request.status === "accepted" ? <p className="mt-1 text-sm font-semibold text-emerald-700">Seller accepted! You can now chat to arrange meetup.</p> : null}
+                    {isBuyer && request.status === "rejected" ? <p className="mt-1 text-sm font-semibold text-red-700">Request declined. Choose another payment method.</p> : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {isSeller && request.status === "pending" ? (
@@ -159,7 +165,7 @@ export const MyDeals = () => {
                         {isBuyer ? "I received the item" : "I received the cash"}
                       </button>
                     ) : null}
-                    {request.chatRoomId ? <button className="rounded-lg border px-4 py-2 text-sm font-semibold" onClick={() => navigate(`/chat/${request.chatRoomId}`)}>Open chat</button> : null}
+                    {request.chatRoomId ? <button className="rounded-lg border px-4 py-2 text-sm font-semibold" onClick={() => navigate(`/chat?with=${isBuyer ? request.seller?._id : request.buyer?._id}&listing=${request.listing?._id}`)}>Open chat</button> : null}
                   </div>
                 </div>
               </div>

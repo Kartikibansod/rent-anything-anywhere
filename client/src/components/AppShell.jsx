@@ -28,6 +28,11 @@ const profileLinks = [
   ["/admin", "Admin", Shield]
 ];
 
+function capitalizeName(name = "") {
+  const first = getFirstName(name).toLowerCase();
+  return first ? `${first.charAt(0).toUpperCase()}${first.slice(1)}` : "User";
+}
+
 export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,9 +52,14 @@ export function AppShell() {
   }
 
   useEffect(() => {
-    api.get("/notifications")
-      .then(({ data }) => setUnreadCount(data.unread || 0))
-      .catch(() => setUnreadCount(0));
+    function loadUnread() {
+      api.get("/notifications")
+        .then(({ data }) => setUnreadCount(data.unread || 0))
+        .catch(() => setUnreadCount(0));
+    }
+    loadUnread();
+    const timer = setInterval(loadUnread, 30000);
+    return () => clearInterval(timer);
   }, []);
 
   function logout() {
@@ -61,11 +71,14 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen text-slate-950">
-      <header className="sticky top-0 z-40 px-3 py-4">
-        <div className="glass relative mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-full px-5 py-3.5">
-          <NavLink to="/" className="z-10 flex shrink-0 items-center gap-2 font-bold tracking-tight" aria-label="Rent Anything Anywhere home">
-            <span className="brand-gradient grid h-9 w-9 place-items-center rounded-full text-white shadow-lg shadow-indigo-500/25">R</span>
-          </NavLink>
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white px-3 py-3">
+        <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-2">
+          <div className="z-10 flex min-w-0 shrink-0 items-center gap-3">
+            <NavLink to="/" className="flex shrink-0 items-center gap-2 font-bold tracking-tight" aria-label="Rent Anything Anywhere home">
+              <span className="brand-gradient grid h-9 w-9 place-items-center rounded-full text-white shadow-lg shadow-indigo-500/25">R</span>
+            </NavLink>
+            {user ? <span className="hidden whitespace-nowrap text-[18px] font-bold text-[#7c3aed] md:inline-block">Hey {capitalizeName(user.name)}!</span> : null}
+          </div>
           <nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-2 rounded-full bg-white/55 p-1 lg:flex">
             {centerLinks.map(([to, label]) => (
               <Link
@@ -84,7 +97,6 @@ export function AppShell() {
           <div className="z-10 flex min-w-0 items-center justify-end gap-2">
             {user ? (
               <>
-                <span className="hidden text-sm font-bold text-slate-700 md:inline">Hey {getFirstName(user.name)} 👋</span>
                 <button
                   className="relative hidden rounded-full border border-slate-200 bg-white/70 p-2.5 text-slate-600 shadow-sm transition hover:border-indigo-300 hover:text-indigo-700 lg:inline-flex"
                   onClick={() => navigate("/notifications")}

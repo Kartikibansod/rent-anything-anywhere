@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
+import { CardElement, Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { MessageCircle } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -11,114 +11,52 @@ const hasStripeKey = /^pk_(test|live)_/.test(stripePublishableKey) && !stripePub
 const stripePromise = hasStripeKey ? loadStripe(stripePublishableKey) : Promise.resolve(null);
 
 export function PaymentCheckout() {
-  return <Elements stripe={stripePromise}><PaymentCheckoutForm /></Elements>;
+  return <PaymentCheckoutForm />;
 }
 
 function PaymentCheckoutForm() {
   const { listingId } = useParams();
-  const stripe = useStripe();
-  const elements = useElements();
-  const navigate = useNavigate();
   const toast = useToast();
   const [listing, setListing] = useState(null);
   const [tab, setTab] = useState("card");
-  const [cardError, setCardError] = useState("");
-  const [upiId, setUpiId] = useState("");
   const [statusText, setStatusText] = useState("");
   const [cashRequest, setCashRequest] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(300);
+  const [paymentConfig, setPaymentConfig] = useState(null);
+  const [upiIntent, setUpiIntent] = useState(null);
   const user = useMemo(() => JSON.parse(localStorage.getItem("user") || "{}"), []);
   const amount = listing?.type === "rent" ? listing?.rentRates?.daily : listing?.askingPrice;
+  const stripeConfigured = Boolean(hasStripeKey && paymentConfig?.stripeConfigured && paymentConfig?.stripePublishableKeyConfigured);
 
   useEffect(() => {
     if (!listingId) return;
-    api.get(`/listings/${listingId}`)
-      .then(({ data }) => setListing(data.listing))
-      .catch((err) => toast.error(getErrorMessage(err, "Could not load listing")));
+    Promise.all([
+      api.get(`/listings/${listingId}`),
+      api.get("/payments/config")
+    ])
+      .then(([listingRes, configRes]) => {
+        setListing(listingRes.data.listing);
+        setPaymentConfig(configRes.data);
+      })
+      .catch((err) => toast.error(getErrorMessage(err, "Could not load checkout")));
   }, [listingId, toast]);
 
-  async function createIntent() {
-    const { data } = await api.post("/payments/create-intent", { listingId });
+  async function createIntent(paymentMethodType) {
+    const { data } = await api.post("/payments/create-intent", { listingId, payment_method_type: paymentMethodType });
     return data;
   }
 
-  async function pollStatus(transactionId) {
-    setSecondsLeft(300);
-    const startedAt = Date.now();
-    const timer = setInterval(async () => {
-      const remaining = Math.max(0, 300 - Math.floor((Date.now() - startedAt) / 1000));
-      setSecondsLeft(remaining);
-      try {
-        const { data } = await api.get(`/payments/status/${transactionId}`);
-        if (["held", "paid", "completed", "released"].includes(data.transaction?.status)) {
-          clearInterval(timer);
-          localStorage.setItem("lastTransactionId", transactionId);
-          navigate("/payment-success");
-        }
-        if (data.transaction?.status === "failed") {
-          clearInterval(timer);
-          setStatusText("Payment failed. Try again.");
-        }
-      } catch {
-        clearInterval(timer);
-        setStatusText("Could not check payment status.");
-      }
-      if (remaining <= 0) {
-        clearInterval(timer);
-        setStatusText("Payment not completed. Try again");
-      }
-    }, 3000);
-  }
-
-  async function payCard() {
-    if (!stripe || !elements) return;
-    const card = elements.getElement(CardElement);
-    if (!card) return;
-    setIsProcessing(true);
-    setCardError("");
-    try {
-      const data = await createIntent();
-      const { error, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, {
-        payment_method: { card, billing_details: { name: user.name || "Buyer" } }
-      });
-      if (error) throw new Error(error.message);
-      if (["succeeded", "requires_capture"].includes(paymentIntent?.status)) {
-        localStorage.setItem("lastTransactionId", data.transactionId);
-        navigate("/payment-success");
-      }
-      else setStatusText("Payment is processing. We will update your deal shortly.");
-    } catch (err) {
-      setCardError(getErrorMessage(err, err.message || "Card payment failed"));
-    } finally {
-      setIsProcessing(false);
-    }
-  }
-
-  async function payUpi() {
-    if (!stripe) return;
-    if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/.test(upiId)) {
-      setStatusText("Enter valid UPI ID (e.g. name@paytm)");
+  async function startUpi() {
+    if (!stripeConfigured) {
+      setStatusText("Payment not configured. Add real Stripe keys in server/.env and client/.env, or use Cash on meetup.");
       return;
     }
     setIsProcessing(true);
     setStatusText("");
     try {
-      const data = await createIntent();
-      const { error, paymentIntent } = await stripe.confirmUpiPayment(data.clientSecret, {
-        payment_method: {
-          upi: { vpa: upiId },
-          billing_details: { name: user.name || "Buyer" }
-        },
-        return_url: "http://localhost:5173/payment-success"
-      });
-      if (error) throw new Error(error.message);
-      setStatusText("Redirecting to your UPI app...");
-      if (["succeeded", "requires_capture"].includes(paymentIntent?.status)) {
-        localStorage.setItem("lastTransactionId", data.transactionId);
-        navigate("/payment-success");
-      }
-      else pollStatus(data.transactionId);
+      const data = await createIntent("upi");
+      localStorage.setItem("lastTransactionId", data.transactionId);
+      setUpiIntent(data);
     } catch (err) {
       setStatusText(getErrorMessage(err, err.message || "UPI payment failed"));
     } finally {
@@ -158,22 +96,26 @@ function PaymentCheckoutForm() {
 
       {tab === "card" ? (
         <div className="mt-5 space-y-4">
-          {!hasStripeKey ? <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">Stripe publishable key is not configured in client/.env.</p> : null}
-          <div className="rounded-2xl border border-slate-200 p-4"><CardElement onChange={(event) => setCardError(event.error?.message || "")} /></div>
-          {cardError ? <p className="text-sm text-red-600">{cardError}</p> : null}
-          <button className="w-full rounded-2xl bg-indigo-700 px-4 py-3 font-bold text-white disabled:opacity-50" disabled={!stripe || isProcessing} onClick={payCard} type="button">
-            {isProcessing ? "Processing..." : `Pay INR ${Number(amount || 0).toLocaleString()}`}
-          </button>
+          {!stripeConfigured ? <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">Payment not configured. Add real STRIPE_SECRET_KEY in server/.env and VITE_STRIPE_PUBLISHABLE_KEY in client/.env. Cash on meetup is still available.</p> : null}
+          <Elements stripe={stripePromise}>
+            <CardPayment amount={amount} createIntent={createIntent} stripeConfigured={stripeConfigured} user={user} />
+          </Elements>
         </div>
       ) : null}
 
       {tab === "upi" ? (
         <div className="mt-5 space-y-4">
-          <input className="w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="yourname@paytm" value={upiId} onChange={(event) => setUpiId(event.target.value)} />
-          <button className="w-full rounded-2xl bg-blue-700 px-4 py-3 font-bold text-white disabled:opacity-50" disabled={!stripe || isProcessing} onClick={payUpi} type="button">
-            {isProcessing ? "Starting..." : "Pay with UPI"}
-          </button>
-          {statusText ? <p className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">{statusText} {secondsLeft < 300 && secondsLeft > 0 ? `(${secondsLeft}s left)` : ""}</p> : null}
+          {!stripeConfigured ? <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">Payment not configured. Add real STRIPE_SECRET_KEY in server/.env and VITE_STRIPE_PUBLISHABLE_KEY in client/.env. Cash on meetup is still available.</p> : null}
+          {!upiIntent ? (
+            <button className="w-full rounded-2xl bg-blue-700 px-4 py-3 font-bold text-white disabled:opacity-50" disabled={!stripeConfigured || isProcessing} onClick={startUpi} type="button">
+              {isProcessing ? "Starting..." : "Pay with UPI"}
+            </button>
+          ) : (
+            <Elements stripe={stripePromise} options={{ clientSecret: upiIntent.clientSecret }}>
+              <UpiPayment user={user} />
+            </Elements>
+          )}
+          {statusText ? <p className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">{statusText}</p> : null}
         </div>
       ) : null}
 
@@ -182,9 +124,89 @@ function PaymentCheckoutForm() {
           <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">Request cash meetup from seller. Buyer cannot complete the deal alone; seller must accept first, then both parties confirm handoff.</div>
           <button className="w-full rounded-2xl bg-slate-950 px-4 py-3 font-bold text-white disabled:opacity-50" disabled={isProcessing} onClick={requestCashMeetup} type="button">Send Request</button>
           {statusText ? <p className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-700">{statusText}</p> : null}
+          {cashRequest?.status ? <p className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold capitalize text-amber-800">Status: {cashRequest.status}</p> : null}
           {cashRequest?.chatRoomId ? <Link className="inline-flex items-center gap-2 font-bold text-indigo-700" to={`/chat/${cashRequest.chatRoomId}`}><MessageCircle size={16} /> Open chat</Link> : null}
         </div>
       ) : null}
     </section>
+  );
+}
+
+function CardPayment({ amount, createIntent, stripeConfigured, user }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const navigate = useNavigate();
+  const [cardError, setCardError] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  async function payCard() {
+    if (!stripeConfigured) {
+      setCardError("Payment not configured. Add real Stripe keys in server/.env and client/.env, or use Cash on meetup.");
+      return;
+    }
+    if (!stripe || !elements) return;
+    const card = elements.getElement(CardElement);
+    if (!card) return;
+    setIsProcessing(true);
+    setCardError("");
+    try {
+      const data = await createIntent("card");
+      const { error, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: { card, billing_details: { name: user.name || "Buyer" } }
+      });
+      if (error) throw new Error(error.message);
+      if (["succeeded", "requires_capture"].includes(paymentIntent?.status)) {
+        localStorage.setItem("lastTransactionId", data.transactionId);
+        navigate("/payment-success");
+      }
+    } catch (err) {
+      setCardError(getErrorMessage(err, err.message || "Card payment failed"));
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="rounded-2xl border border-slate-200 p-4"><CardElement onChange={(event) => setCardError(event.error?.message || "")} /></div>
+      {cardError ? <p className="text-sm text-red-600">{cardError}</p> : null}
+      <button className="w-full rounded-2xl bg-indigo-700 px-4 py-3 font-bold text-white disabled:opacity-50" disabled={!stripeConfigured || !stripe || isProcessing} onClick={payCard} type="button">
+        {isProcessing ? "Processing..." : `Pay INR ${Number(amount || 0).toLocaleString()}`}
+      </button>
+    </>
+  );
+}
+
+function UpiPayment({ user }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [statusText, setStatusText] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  async function payUpi() {
+    if (!stripe || !elements) return;
+    setIsProcessing(true);
+    setStatusText("");
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: "http://localhost:5173/payment-success",
+        payment_method_data: {
+          billing_details: { name: user.name || "Buyer" }
+        }
+      }
+    });
+    if (error) setStatusText(error.message || "UPI payment failed");
+    setIsProcessing(false);
+  }
+
+  return (
+    <>
+      <div className="rounded-2xl border border-slate-200 p-4"><PaymentElement /></div>
+      <button className="w-full rounded-2xl bg-blue-700 px-4 py-3 font-bold text-white disabled:opacity-50" disabled={!stripe || isProcessing} onClick={payUpi} type="button">
+        {isProcessing ? "Redirecting..." : "Pay with UPI"}
+      </button>
+      {statusText ? <p className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">{statusText}</p> : null}
+    </>
   );
 }

@@ -22,6 +22,12 @@ export function Notifications() {
 
   useEffect(() => { load(); }, []);
 
+  async function updateCashMeetup(event, requestId, action) {
+    event.stopPropagation();
+    await api.patch(`/cash-meetups/${requestId}/status`, { action });
+    await load();
+  }
+
   return (
     <section className="glass rounded-[36px] p-5">
       <div className="flex items-center justify-between">
@@ -47,18 +53,30 @@ export function Notifications() {
       {!loading && notifications.length > 0 && (
         <div className="mt-4 divide-y divide-slate-100">
           {notifications.map((note) => (
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               className={`block w-full rounded-2xl px-3 py-4 text-left transition hover:bg-white/70 ${!note.read ? "bg-indigo-50/60" : ""}`}
               key={note._id}
               onClick={() => {
                 api.patch(`/notifications/${note._id}/read`).then(load);
+                if (note.data?.actionUrl) {
+                  window.location.href = note.data.actionUrl;
+                  return;
+                }
                 if (note.data?.listingId) navigate(`/listing/${note.data.listingId}`);
                 if (note.data?.bookingId) navigate("/bookings");
               }}
             >
               <p className="font-semibold text-slate-900">{note.title}</p>
               <p className="mt-0.5 text-sm text-slate-600">{note.message}</p>
-            </button>
+              {note.type === "cash_meetup" && note.data?.requestId && note.title === "Cash meetup request" ? (
+                <div className="mt-3 flex gap-2">
+                  <button className="rounded-full bg-emerald-600 px-4 py-2 text-xs font-bold text-white" type="button" onClick={(event) => updateCashMeetup(event, note.data.requestId, "accept")}>Accept</button>
+                  <button className="rounded-full border border-red-300 px-4 py-2 text-xs font-bold text-red-600" type="button" onClick={(event) => updateCashMeetup(event, note.data.requestId, "reject")}>Decline</button>
+                </div>
+              ) : null}
+            </div>
           ))}
         </div>
       )}

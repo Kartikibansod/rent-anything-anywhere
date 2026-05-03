@@ -105,30 +105,18 @@ export function Register() {
   }
 
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-[48%_52%]">
-      <section className="relative hidden overflow-hidden p-10 text-white lg:flex lg:flex-col">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)]" />
-        <div className="relative z-10 flex h-full flex-col justify-between">
-          <div>
-            <span className="inline-flex rounded-full bg-orange-500 px-4 py-2 text-xs font-black tracking-[0.16em]">HOSTEL-FIRST MARKETPLACE</span>
-            <h1 className="mt-8 text-5xl font-black leading-tight">Trade safely with students and trusted nearby locals</h1>
-            <p className="mt-5 max-w-xl text-lg text-white/90">Buy, sell, rent, chat, and arrange handoffs without sharing phone numbers</p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {["Verified students", "JWT protected", "No phone numbers"].map((item) => (
-              <div key={item} className="rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold">{item}</div>
-            ))}
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#f5f3ff_0%,#ede9fe_100%)] px-5 py-10">
+      <motion.section className="w-full max-w-md rounded-[32px] bg-white px-7 py-8 text-center shadow-[0_24px_80px_rgba(124,58,237,0.16)] sm:px-9" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[linear-gradient(135deg,#7c3aed,#2563eb)] text-2xl font-black text-white shadow-lg shadow-violet-200">R</div>
+        <p className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-violet-500">WELCOME TO</p>
+        <h1 className="mt-2 text-3xl font-black text-slate-950">Rent Anything Anywhere</h1>
+        <p className="mt-2 text-sm text-slate-500">Buy, sell and rent everything around your campus</p>
+        <div className="mt-7 grid grid-cols-2 rounded-2xl bg-violet-50 p-1 text-sm font-bold">
+          <Link className="rounded-xl px-4 py-2 text-slate-500" to="/login">Login</Link>
+          <button className="rounded-xl bg-white px-4 py-2 text-violet-700 shadow-sm" type="button">Register</button>
         </div>
-      </section>
-
-      <section className="flex min-h-screen items-center justify-center bg-white px-5 py-8 sm:px-8">
-        <motion.div className="w-full max-w-2xl bg-white px-6 py-7 sm:px-10 sm:py-10" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="text-sm font-black uppercase tracking-[0.16em] text-emerald-700">CREATE ACCOUNT</p>
-          <h2 className="mt-2 text-4xl font-black text-slate-950">Register</h2>
-          <p className="mt-2 text-sm text-slate-600">Students and locals can join with email verification.</p>
       {!otpState ? (
-        <motion.form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        <motion.form className="mt-7 space-y-4 text-left" onSubmit={handleSubmit}>
           {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
           <label className="block"><span className="text-sm font-semibold text-slate-700">Name</span><input className="mt-2 h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" type="text" name="name" value={form.name} onChange={updateField} required /></label>
           <label className="block"><span className="text-sm font-semibold text-slate-700">Email</span><input className="mt-2 h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" type="email" name="email" value={form.email} onChange={updateField} required /></label>
@@ -154,17 +142,17 @@ export function Register() {
               <input className="mt-2 block w-full text-sm" type="file" accept="image/*,.pdf" onChange={(event) => setCollegeIdFile(event.target.files?.[0] || null)} />
             </label>
           ) : null}
-          <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] text-base font-bold text-white" type="submit" disabled={isSubmitting}>{isSubmitting ? "Creating account..." : "Register"}</button>
+          <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] text-base font-bold text-white shadow-lg shadow-violet-200" type="submit" disabled={isSubmitting}>{isSubmitting ? "Creating account..." : "Register"}</button>
+          <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"><span className="h-px flex-1 bg-slate-200" />or continue with<span className="h-px flex-1 bg-slate-200" /></div>
           {authConfig.googleConfigured ? (
             <a className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 font-semibold text-slate-700" href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001'}/api/auth/google`}>
-              <span className="text-lg">G</span> Google Sign In
+              <span className="text-lg font-black text-[#4285F4]">G</span> Continue with Google
             </a>
           ) : (
             <button className="flex h-14 w-full cursor-not-allowed items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-slate-100 font-semibold text-slate-400" type="button" disabled title="Google Sign In not configured">
-              <span className="text-lg">G</span> Google Sign In
+              <span className="text-lg font-black">G</span> Continue with Google
             </button>
           )}
-          <p className="pt-2 text-sm text-slate-600">Already registered? <Link to="/login" className="font-semibold text-violet-700 hover:text-violet-800">Login</Link></p>
         </motion.form>
       ) : (
         <div className="mt-8 space-y-4">
@@ -175,8 +163,7 @@ export function Register() {
           <button className="w-full text-sm font-semibold text-indigo-700 disabled:text-slate-400" type="button" onClick={resendOtp} disabled={cooldown > 0}>Resend OTP {cooldown > 0 ? `in ${cooldown}s` : ""}</button>
         </div>
       )}
-        </motion.div>
-      </section>
+      </motion.section>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 const express = require("express");
+const { env } = require("../config/env");
 const { authenticate } = require("../middleware/auth");
 const { Message } = require("../models/Message");
+const { createNotification } = require("../services/notificationService");
 const { asyncHandler } = require("../utils/asyncHandler");
 
 const router = express.Router();
@@ -41,6 +43,13 @@ router.post("/", asyncHandler(async (req, res) => {
     content,
     photos,
     type
+  });
+  await createNotification({
+    user: receiverId,
+    type: "message",
+    title: "New message",
+    message: `${req.user.name} sent you a message.`,
+    data: { conversationId, listingId, actionUrl: `${env.clientUrl}/chat/${conversationId}` }
   });
   res.status(201).json({ message });
 }));

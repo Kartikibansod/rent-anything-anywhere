@@ -9,13 +9,18 @@ const { Listing } = require("../models/Listing");
 const { PriceHistory } = require("../models/PriceHistory");
 const { CashMeetupRequest } = require("../models/CashMeetupRequest");
 const { Chat } = require("../models/Chat");
-const { Notification } = require("../models/Notification");
+const { Message } = require("../models/Message");
+const { createNotification } = require("../services/notificationService");
 const { asyncHandler } = require("../utils/asyncHandler");
 
 const router = express.Router();
 
 function hasRealStripeKey(key = "") {
   return /^sk_(test|live)_[A-Za-z0-9]/.test(key) && !key.includes("your_key_here");
+}
+
+function hasRealStripePublishableKey(key = "") {
+  return /^pk_(test|live)_[A-Za-z0-9]/.test(key) && !key.includes("your_key_here");
 }
 
 function hasRealStripeWebhookSecret(key = "") {
@@ -45,13 +50,6 @@ function calculateListingAmount(listing) {
 }
 
 function ensureVerifiedForPayments(req, res) {
-  const user = req.user;
-  const studentOk = user.userType !== "student" || user.verification?.status === "approved";
-  const ok = user.isEmailVerified && user.profileCompleted && studentOk;
-  if (!ok) {
-    res.status(403).json({ message: "Verify your account before making payments" });
-    return false;
-  }
   return true;
 }
 
@@ -91,8 +89,17 @@ async function getPayableListing(req) {
 }
 
 async function completeTransaction(tx) {
+  const wasPending = tx.status === "pending";
   tx.status = "held";
   await tx.save();
+  if (wasPending) {
+    const listing = await Listing.findById(tx.listing).select("title");
+    await notify(tx.seller, "Online payment successful", `${tx.buyer?.name || "Buyer"} has paid INR ${tx.amount} for ${listing?.title || "your item"}. Payment is held in escrow until buyer confirms receipt.`, {
+      transactionId: tx._id,
+      listingId: tx.listing,
+      actionUrl: `${env.clientUrl}/my-deals`
+    }, "payment_confirmation", `Payment received for ${listing?.title || "item"}!`);
+  }
 }
 
 async function releaseTransaction(tx) {
@@ -111,17 +118,18 @@ async function releaseTransaction(tx) {
       soldAt: new Date()
     });
   }
-  await notify(tx.buyer, "Payment released", "Thanks for confirming receipt. Your seller has been notified.", { transactionId: tx._id });
-  await notify(tx.seller, "Payment released", "Buyer confirmed receipt. Funds are released from escrow.", { transactionId: tx._id });
+  await notify(tx.buyer, "Payment released", "Thanks for confirming receipt. Your seller has been notified.", { transactionId: tx._id, actionUrl: `${env.clientUrl}/my-deals` }, "payment_confirmation");
+  await notify(tx.seller, "Item marked as received", `Buyer has confirmed receipt. Your payment of INR ${tx.amount} has been released.`, { transactionId: tx._id, actionUrl: `${env.clientUrl}/my-deals` }, "payment_confirmation", `Payment released for ${listing?.title || "item"}!`);
 }
 
-async function notify(user, title, message, data = {}) {
-  await Notification.create({ user, type: "cash_meetup", title, message, data });
+async function notify(user, title, message, data = {}, type = "cash_meetup", subject) {
+  await createNotification({ user, type, title, message, data, subject });
 }
 
 router.get("/payments/config", (req, res) => {
   res.json({
     stripeConfigured: Boolean(stripe),
+    stripePublishableKeyConfigured: hasRealStripePublishableKey(env.stripe.publishableKey),
     stripeWebhookConfigured: hasRealStripeWebhookSecret(env.stripe.webhookSecret),
     upiFallbackEnabled: true,
     currency: "inr"
@@ -132,6 +140,7 @@ router.post("/payments/create-intent", authenticate, asyncHandler(async (req, re
   if (!ensureVerifiedForPayments(req, res)) return;
   if (!stripe) return res.status(503).json({ message: "Stripe is not configured. Use UPI fallback or Cash on meetup." });
 
+  const method = req.body.payment_method_type === "upi" ? "upi" : "card";
   const listing = await getPayableListing(req);
   const amount = calculateListingAmount(listing);
   const amountInSmallestUnit = Math.round(amount * 100);
@@ -139,8 +148,8 @@ router.post("/payments/create-intent", authenticate, asyncHandler(async (req, re
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amountInSmallestUnit,
     currency: "inr",
-    payment_method_types: ["card", "upi"],
-    capture_method: "manual",
+    payment_method_types: [method],
+    capture_method: method === "upi" ? "automatic" : "manual",
     metadata: {
       listingId: String(listing._id),
       buyerId: String(req.user._id),
@@ -155,7 +164,7 @@ router.post("/payments/create-intent", authenticate, asyncHandler(async (req, re
     amount,
     currency: "inr",
     type: listing.type === "rent" ? "rental" : "purchase",
-    paymentMethod: "card",
+    paymentMethod: method,
     status: "pending",
     stripePaymentIntentId: paymentIntent.id
   });
@@ -175,8 +184,7 @@ router.get("/payments/status/:transactionId", authenticate, asyncHandler(async (
     const paymentIntent = await stripe.paymentIntents.retrieve(tx.stripePaymentIntentId);
     if (paymentIntent.status === "requires_capture") await completeTransaction(tx);
     if (paymentIntent.status === "succeeded") {
-      tx.status = tx.releasedAt ? "released" : "held";
-      await tx.save();
+      await completeTransaction(tx);
     }
     if (paymentIntent.status === "requires_payment_method" && paymentIntent.last_payment_error) {
       tx.status = "failed";
@@ -196,7 +204,10 @@ router.post("/payments/capture", authenticate, asyncHandler(async (req, res) => 
   if (String(tx.buyer) !== String(req.user._id) && req.user.role !== "admin") {
     return res.status(403).json({ message: "Only the buyer can confirm receipt" });
   }
-  if (stripe && tx.stripePaymentIntentId && tx.status === "held") {
+  if (tx.paymentMethod === "upi" && tx.status === "held") {
+    return res.json({ transaction: tx });
+  }
+  if (stripe && tx.paymentMethod === "card" && tx.stripePaymentIntentId && tx.status === "held") {
     await stripe.paymentIntents.capture(tx.stripePaymentIntentId);
   }
   await releaseTransaction(tx);
@@ -270,10 +281,12 @@ router.post("/payments/cash", authenticate, asyncHandler(async (req, res) => {
     status: "pending"
   });
 
-  await notify(listing.owner, "Cash meetup request", `${req.user.name} wants cash on meetup for ${listing.title}.`, {
+  const price = calculateListingAmount(listing);
+  await notify(listing.owner, "Cash meetup request", `Hi seller, ${req.user.name} wants to buy ${listing.title} for INR ${price} via cash meetup. Click here to accept or decline.`, {
     requestId: request._id,
-    listingId: listing._id
-  });
+    listingId: listing._id,
+    actionUrl: `${env.clientUrl}/my-deals`
+  }, "cash_meetup", `${req.user.name} wants cash meetup for ${listing.title}`);
 
   res.status(201).json({
     request,
@@ -302,7 +315,7 @@ router.patch("/cash-meetups/:requestId/status", authenticate, asyncHandler(async
   if (action === "reject") {
     request.status = "rejected";
     await request.save();
-    await notify(request.buyer, "Cash meetup declined", `Seller declined cash meetup for ${request.listing.title}.`, { requestId: request._id });
+    await notify(request.buyer, "Cash meetup declined", `Hi buyer, seller has declined the cash meetup. Please choose another payment method.`, { requestId: request._id, actionUrl: `${env.clientUrl}/checkout/${request.listing._id}` }, "cash_meetup", `Cash meetup request for ${request.listing.title}`);
     return res.json({ request });
   }
   if (action !== "accept") return res.status(400).json({ message: "Invalid action" });
@@ -321,7 +334,18 @@ router.patch("/cash-meetups/:requestId/status", authenticate, asyncHandler(async
   request.status = "accepted";
   request.chatRoomId = chat._id;
   await request.save();
-  await notify(request.buyer, "Cash meetup accepted", `Seller accepted cash meetup for ${request.listing.title}.`, { requestId: request._id, chatId: chat._id });
+  const sorted = [String(request.buyer), String(request.seller)].sort();
+  const conversationId = `${sorted[0]}:${sorted[1]}:${request.listing._id}`;
+  await Message.create({
+    conversationId,
+    sender: request.seller,
+    receiver: request.buyer,
+    listing: request.listing._id,
+    type: "system",
+    content: `Cash meetup agreed for ${request.listing.title}`
+  });
+  await notify(request.buyer, "Cash meetup accepted!", `Hi buyer, seller has accepted your cash meetup request for ${request.listing.title}. Open the app to arrange the meetup.`, { requestId: request._id, chatId: chat._id, actionUrl: `${env.clientUrl}/chat?with=${request.seller}&listing=${request.listing._id}` }, "cash_meetup", `Cash meetup accepted for ${request.listing.title}!`);
+  await notify(request.seller, "Cash meetup accepted!", `Cash meetup agreed for ${request.listing.title}.`, { requestId: request._id, chatId: chat._id, actionUrl: `${env.clientUrl}/chat?with=${request.buyer}&listing=${request.listing._id}` });
   res.json({ request });
 }));
 
@@ -342,6 +366,8 @@ router.patch("/cash-meetups/:requestId/confirm", authenticate, asyncHandler(asyn
       request.listing.status = request.listing.type === "rent" ? "rented" : "sold";
       await request.listing.save();
     }
+    await notify(request.buyer, "Cash meetup completed", `Cash meetup completed for ${request.listing.title}.`, { requestId: request._id, listingId: request.listing._id, actionUrl: `${env.clientUrl}/my-deals` });
+    await notify(request.seller, "Cash meetup completed", `Cash meetup completed for ${request.listing.title}.`, { requestId: request._id, listingId: request.listing._id, actionUrl: `${env.clientUrl}/my-deals` });
   }
   await request.save();
   res.json({ request });
@@ -367,6 +393,8 @@ router.post("/payments/:transactionId/confirm-handoff", authenticate, asyncHandl
       listing.status = listing.type === "rent" ? "rented" : "sold";
       await listing.save();
     }
+    await notify(tx.buyer, "Meetup payment completed", "Meetup payment completed.", { transactionId: tx._id, actionUrl: `${env.clientUrl}/my-deals` }, "payment_confirmation");
+    await notify(tx.seller, "Meetup payment completed", "Meetup payment completed.", { transactionId: tx._id, actionUrl: `${env.clientUrl}/my-deals` }, "payment_confirmation");
   }
   await tx.save();
   res.json({ transaction: tx });

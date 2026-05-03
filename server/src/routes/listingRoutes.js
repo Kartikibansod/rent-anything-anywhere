@@ -1,8 +1,9 @@
 const express = require("express");
+const { env } = require("../config/env");
 const { Listing } = require("../models/Listing");
-const { Notification } = require("../models/Notification");
 const { PriceHistory } = require("../models/PriceHistory");
 const { Transaction } = require("../models/Transaction");
+const { createNotification } = require("../services/notificationService");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { authenticate } = require("../middleware/auth");
 const { upload } = require("../middleware/upload");
@@ -92,6 +93,22 @@ function normalizeAiEstimate(raw) {
   };
 }
 
+function badRequest(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
+function parseJsonField(value, fallback) {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
 router.get("/", asyncHandler(async (req, res) => {
   const { lng, lat, radius = 10, page = 1, limit = 20 } = req.query;
   const filter = listingFilters(req.query);
@@ -137,10 +154,13 @@ router.get("/", asyncHandler(async (req, res) => {
   res.json({ listings: sellerType ? listings.filter((listing) => listing.owner?.userType === sellerType) : listings, page: Number(page), limit: Number(limit) });
 }));
 
-router.get("/mine", authenticate, asyncHandler(async (req, res) => {
+async function getMyListings(req, res) {
   const listings = await Listing.find({ owner: req.user._id }).sort({ createdAt: -1 });
   res.json({ listings });
-}));
+}
+
+router.get("/my", authenticate, asyncHandler(getMyListings));
+router.get("/mine", authenticate, asyncHandler(getMyListings));
 
 router.get("/wishlist", authenticate, asyncHandler(async (req, res) => {
   const listings = await Listing.find({ wishlistedBy: req.user._id })
@@ -172,15 +192,32 @@ router.post("/score-condition", authenticate, upload.single("photo"), asyncHandl
 }));
 
 router.post("/", authenticate, upload.array("photos", 5), asyncHandler(async (req, res) => {
-  const location = JSON.parse(req.body.location || "{}");
-  const rentRates = req.body.rentRates ? JSON.parse(req.body.rentRates) : undefined;
+  const location = parseJsonField(req.body.location, {});
+  const rentRates = parseJsonField(req.body.rentRates, undefined);
   const photos = [];
   for (const file of req.files || []) {
     const uploaded = await uploadImageBuffer(file.buffer, "rent-anything-anywhere/listings");
     photos.push(uploaded);
   }
 
+  const title = String(req.body.title || "").trim();
+  const description = String(req.body.description || "").trim();
+  if (!title) throw badRequest("Title is required");
+  if (!["sell", "rent"].includes(req.body.type)) throw badRequest("Listing type must be sell or rent");
+  if (!description || description.length < 20) throw badRequest("Description must be at least 20 characters");
+
   const askingPrice = Number(req.body.askingPrice || rentRates?.daily || 0);
+  if (askingPrice <= 0) {
+    throw badRequest(req.body.type === "rent" ? "Daily rent price must be greater than 0" : "Sell price must be greater than 0");
+  }
+  const coordinates = Array.isArray(location.coordinates) && location.coordinates.length === 2
+    ? [Number(location.coordinates[0]) || 74.2433, Number(location.coordinates[1]) || 16.7050]
+    : [74.2433, 16.7050];
+  const listingLocation = {
+    type: "Point",
+    coordinates,
+    address: location.address || "Kolhapur"
+  };
   const completedDeals = await Transaction.countDocuments({
     seller: req.user._id,
     status: { $in: ["completed", "released"] }
@@ -200,26 +237,26 @@ router.post("/", authenticate, upload.array("photos", 5), asyncHandler(async (re
   const listing = await Listing.create({
     owner: req.user._id,
     type: req.body.type,
-    title: req.body.title,
+    title,
     photos,
     category: req.body.category,
     condition: req.body.condition,
     conditionScore: req.body.conditionScore ? Number(req.body.conditionScore) : undefined,
     conditionAiReasoning: req.body.conditionAiReasoning,
-    conditionDescription: req.body.conditionDescription,
+    conditionDescription: req.body.conditionDescription || undefined,
     itemAge: req.body.itemAge,
     askingPrice: req.body.type === "sell" ? askingPrice : undefined,
     rentRates: req.body.type === "rent" ? rentRates : undefined,
     damageDeposit: Number(req.body.damageDeposit || 0),
-    description: req.body.description,
+    description,
     aiPriceEstimate: normalizeAiEstimate(req.body.aiPriceEstimate),
-    location,
+    location: listingLocation,
     moderation: {
       isFlagged: fraudReasons.length > 0,
       reasons: fraudReasons,
       state: needsFirstApproval ? "pending_first_approval" : fraudReasons.length > 0 ? "under_review" : "live"
     },
-    status: needsFirstApproval ? "pending_approval" : fraudReasons.length > 0 ? "inactive" : "active"
+    status: fraudReasons.length > 0 ? "inactive" : "active"
   });
 
   res.status(201).json({ listing });
@@ -271,8 +308,62 @@ router.post('/:id/offer', authenticate, asyncHandler(async (req, res) => {
   const offer = { buyer: req.user._id, amount, message: req.body.message, status: 'pending', expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), createdAt: new Date() };
   listing.offers.push(offer);
   await listing.save();
-  await Notification.create({ user: listing.owner, type: 'offer', title: 'New offer received', message: `${req.user.name} offered INR ${offer.amount} for ${listing.title}.`, data: { listingId: listing._id } });
-  res.status(201).json({ offer });
+  const savedOffer = listing.offers[listing.offers.length - 1];
+  await createNotification({
+    user: listing.owner,
+    type: 'offer',
+    title: 'New offer received',
+    message: `${req.user.name} offered INR ${offer.amount} for ${listing.title}.`,
+    data: { listingId: listing._id, offerId: savedOffer._id, actionUrl: `${env.clientUrl}/listings/${listing._id}` }
+  });
+  res.status(201).json({ offer: savedOffer });
+}));
+
+router.patch('/:id/offers/:offerId', authenticate, asyncHandler(async (req, res) => {
+  const listing = await Listing.findById(req.params.id);
+  if (!listing) return res.status(404).json({ message: 'Listing not found' });
+  if (String(listing.owner) !== String(req.user._id)) return res.status(403).json({ message: "Only the seller can update offers" });
+
+  const offer = listing.offers.id(req.params.offerId);
+  if (!offer) return res.status(404).json({ message: "Offer not found" });
+
+  const action = req.body.action;
+  if (action === "accept") {
+    offer.status = "accepted";
+    await createNotification({
+      user: offer.buyer,
+      type: "offer",
+      title: "Offer accepted",
+      message: `Your offer for ${listing.title} was accepted.`,
+      data: { listingId: listing._id, offerId: offer._id, actionUrl: `${env.clientUrl}/listings/${listing._id}` }
+    });
+  } else if (action === "decline" || action === "reject") {
+    offer.status = "rejected";
+    await createNotification({
+      user: offer.buyer,
+      type: "offer",
+      title: "Offer declined",
+      message: `Your offer for ${listing.title} was declined.`,
+      data: { listingId: listing._id, offerId: offer._id, actionUrl: `${env.clientUrl}/listings/${listing._id}` }
+    });
+  } else if (action === "counter") {
+    const counterPrice = Number(req.body.counterPrice);
+    if (!counterPrice || counterPrice <= 0) return res.status(400).json({ message: "Counter price must be greater than 0" });
+    offer.status = "countered";
+    offer.counterPrice = counterPrice;
+    await createNotification({
+      user: offer.buyer,
+      type: "offer",
+      title: "Counter offer received",
+      message: `Seller countered ${listing.title} at INR ${counterPrice}.`,
+      data: { listingId: listing._id, offerId: offer._id, actionUrl: `${env.clientUrl}/listings/${listing._id}` }
+    });
+  } else {
+    return res.status(400).json({ message: "action must be accept, decline, or counter" });
+  }
+
+  await listing.save();
+  res.json({ offer });
 }));
 
 module.exports = router;

@@ -71,13 +71,14 @@ export function Home() {
   }
 
   return (
-    <div className="space-y-16 pb-20">
+    <div className="-mx-4 space-y-0 bg-white pb-20 sm:-mx-5">
       <motion.section
-        className="relative isolate overflow-hidden rounded-[40px] px-5 py-20 text-center text-white shadow-2xl shadow-indigo-950/20 sm:px-10"
+        className="relative isolate mx-4 overflow-hidden rounded-[32px] px-5 py-20 text-center text-white shadow-2xl shadow-indigo-950/20 sm:mx-5 sm:px-10"
         initial={{ opacity: 0, y: 28 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(130deg,#4f46e5_0%,#7c3aed_35%,#0ea5e9_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(130deg,#4f46e5_0%,#7c3aed_42%,#2563eb_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.22),transparent_28rem)]" />
         <motion.p className="mx-auto inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur" whileHover={{ scale: 1.03 }}>
           <Sparkles size={16} />
           Student and local marketplace
@@ -119,7 +120,7 @@ export function Home() {
         </form>
       </motion.section>
 
-      <motion.section initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}>
+      <motion.section className="mt-16 bg-white px-4 sm:px-5" initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}>
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-2xl font-black">Browse categories</h2>
           <button className="inline-flex items-center gap-2 font-bold text-indigo-700" onClick={() => navigate("/search")}>
@@ -129,27 +130,27 @@ export function Home() {
         <div className="hide-scrollbar flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-7 lg:overflow-visible">
           {categories.map(([category, image]) => (
             <motion.button
-              className="group relative h-40 w-52 shrink-0 overflow-hidden rounded-[28px] text-left shadow-lg transition lg:w-auto"
+              className="group relative h-40 w-52 shrink-0 overflow-hidden rounded-2xl text-left shadow-lg transition lg:w-auto"
               key={category}
               variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
               whileHover={{ y: -8, scale: 1.03 }}
               onClick={() => navigate(`/buy?category=${encodeURIComponent(category)}`)}
             >
               <img className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-110" src={image} alt="" />
-              <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-              <span className="absolute bottom-4 left-4 right-4 text-lg font-black text-white">{category}</span>
+              <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/5" />
+              <span className="absolute bottom-4 left-4 right-4 text-xl font-black text-white">{category}</span>
             </motion.button>
           ))}
         </div>
       </motion.section>
 
-      <section>
+      <section className="mt-16 bg-[#f9fafb] px-4 py-12 sm:px-5">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-2xl font-black">Trending near you</h2>
           <div className="flex gap-2">
             {["", "sell", "rent"].map((item) => (
               <button
-                className={`rounded-full px-4 py-2 text-sm font-bold ${type === item ? "brand-gradient text-white" : "glass text-slate-700"}`}
+                className={`rounded-full px-4 py-2 text-sm font-bold ${type === item ? "brand-gradient text-white" : "bg-white text-slate-700 shadow-sm"}`}
                 key={item || "all"}
                 onClick={() => setType(item)}
               >
@@ -168,7 +169,7 @@ export function Home() {
               </div>
             ))}
             {listings.length === 0 ? (
-              <div className="glass w-full rounded-[32px] p-10 text-center text-slate-600">
+              <div className="w-full rounded-[24px] bg-white p-10 text-center text-slate-600 shadow-sm">
                 <PackageOpen className="mx-auto mb-3 text-indigo-600" size={42} />
                 <p className="text-lg font-black text-slate-800">No listings yet</p>
                 <p className="mt-2 text-sm">Be the first to post something!</p>
@@ -184,7 +185,7 @@ export function Home() {
           .slice(0, 4);
         if (categoryListings.length === 0) return null;
         return (
-          <section key={category}>
+          <section className="bg-white px-4 py-12 sm:px-5" key={category}>
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-2xl font-black">{category} near you</h2>
               <button
@@ -210,7 +211,7 @@ export function Home() {
         );
       })}
 
-      <footer className="glass rounded-[32px] p-6 text-sm text-slate-600">
+      <footer className="mx-4 mt-4 rounded-[24px] bg-white p-6 text-sm text-slate-600 shadow-sm sm:mx-5">
         <div className="flex flex-col justify-between gap-3 sm:flex-row">
           <p className="font-bold text-slate-950">Rent Anything Anywhere</p>
           <div className="flex gap-4">

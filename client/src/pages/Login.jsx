@@ -129,31 +129,19 @@ export function Login() {
   }
 
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-[48%_52%]">
-      <section className="relative hidden overflow-hidden p-10 text-white lg:flex lg:flex-col">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)]" />
-        <div className="relative z-10 flex h-full flex-col justify-between">
-          <div>
-            <span className="inline-flex rounded-full bg-orange-500 px-4 py-2 text-xs font-black tracking-[0.16em]">HOSTEL-FIRST MARKETPLACE</span>
-            <h1 className="mt-8 text-5xl font-black leading-tight">Trade safely with students and trusted nearby locals</h1>
-            <p className="mt-5 max-w-xl text-lg text-white/90">Buy, sell, rent, chat, and arrange handoffs without sharing phone numbers</p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {['Verified students', 'JWT protected', 'No phone numbers'].map((item) => (
-              <div key={item} className="rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold">{item}</div>
-            ))}
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#f5f3ff_0%,#ede9fe_100%)] px-5 py-10">
+      <motion.section className="w-full max-w-md rounded-[32px] bg-white px-7 py-8 text-center shadow-[0_24px_80px_rgba(124,58,237,0.16)] sm:px-9" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[linear-gradient(135deg,#7c3aed,#2563eb)] text-2xl font-black text-white shadow-lg shadow-violet-200">R</div>
+        <p className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-violet-500">WELCOME TO</p>
+        <h1 className="mt-2 text-3xl font-black text-slate-950">Rent Anything Anywhere</h1>
+        <p className="mt-2 text-sm text-slate-500">Buy, sell and rent everything around your campus</p>
+        <div className="mt-7 grid grid-cols-2 rounded-2xl bg-violet-50 p-1 text-sm font-bold">
+          <button className="rounded-xl bg-white px-4 py-2 text-violet-700 shadow-sm" type="button">Login</button>
+          <Link className="rounded-xl px-4 py-2 text-slate-500" to="/register">Register</Link>
         </div>
-      </section>
-
-      <section className="flex min-h-screen items-center justify-center bg-white px-5 py-8 sm:px-8">
-        <motion.div className="w-full max-w-2xl bg-white px-6 py-7 sm:px-10 sm:py-10" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
-          <h2 className="mt-2 text-4xl font-black text-slate-950">Login</h2>
-          <p className="mt-2 text-sm font-black uppercase tracking-[0.16em] text-emerald-700">WELCOME BACK</p>
-          <p className="mt-2 text-sm text-slate-600">Access your listings, chats, deals, and verification status.</p>
 
           {!otpState ? (
-            <motion.form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+            <motion.form className="mt-7 space-y-4 text-left" onSubmit={handleSubmit}>
               {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">Email</span>
@@ -166,28 +154,27 @@ export function Login() {
                   <button className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
                 </div>
               </label>
-              <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] text-base font-bold text-white" type="submit" disabled={isSubmitting}>{isSubmitting ? "Logging in..." : "Login"}</button>
+              <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] text-base font-bold text-white shadow-lg shadow-violet-200" type="submit" disabled={isSubmitting}>{isSubmitting ? "Logging in..." : "Sign In"}</button>
+              <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"><span className="h-px flex-1 bg-slate-200" />or continue with<span className="h-px flex-1 bg-slate-200" /></div>
               {authConfig.googleConfigured ? (
                 <a className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 font-semibold text-slate-700" href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001'}/api/auth/google`}>
-                  <span className="text-lg">G</span> Google Sign In
+                  <span className="text-lg font-black text-[#4285F4]">G</span> Continue with Google
                 </a>
               ) : (
                 <button className="flex h-14 w-full cursor-not-allowed items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-slate-100 font-semibold text-slate-400" type="button" disabled title="Google Sign In not configured">
-                  <span className="text-lg">G</span> Google Sign In
+                  <span className="text-lg font-black">G</span> Continue with Google
                 </button>
               )}
-              <p className="pt-2 text-sm text-slate-600">New here? <Link to="/register" className="font-semibold text-violet-700 hover:text-violet-800">Create an account</Link></p>
             </motion.form>
           ) : (
-            <div className="mt-8 space-y-4">
+            <div className="mt-8 space-y-4 text-left">
               <p className="text-sm text-slate-600">Enter the 6-digit OTP sent to your email.</p>
               <OtpInput value={otp} onChange={setOtp} onComplete={verifyOtp} />
               <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] font-bold text-white" type="button" onClick={() => verifyOtp()}>Verify OTP</button>
               <button className="w-full text-sm font-semibold text-indigo-700 disabled:text-slate-400" type="button" onClick={resendOtp} disabled={cooldown > 0}>Resend OTP {cooldown > 0 ? `in ${cooldown}s` : ""}</button>
             </div>
           )}
-        </motion.div>
-      </section>
+      </motion.section>
 
       {googlePendingUser ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">

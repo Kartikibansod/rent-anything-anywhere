@@ -5,9 +5,6 @@ async function connectDB() {
   try {
     mongoose.set("strictQuery", true);
 
-    // 🔍 DEBUG: check what URI is being used
-    console.log("MONGO_URI:", env.mongoUri);
-
     const connection = await mongoose.connect(env.mongoUri);
 
     console.log("MongoDB Atlas Connected:", connection.connection.host);

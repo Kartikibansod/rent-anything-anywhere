@@ -1,7 +1,13 @@
 import axios from "axios";
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
-export const APP_BASE_URL = API_BASE_URL.startsWith("http") ? API_BASE_URL.replace(/\/api\/?$/, "") : "";
+function normalizeApiBaseUrl(value) {
+  const rawUrl = String(value || "").replace(/\/+$/, "");
+  if (!rawUrl) return "/api";
+  return rawUrl.endsWith("/api") ? rawUrl : `${rawUrl}/api`;
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
+export const APP_BASE_URL = API_BASE_URL.startsWith("http") ? API_BASE_URL.replace(/\/api$/, "") : window.location.origin;
 
 export const api = axios.create({
   baseURL: API_BASE_URL

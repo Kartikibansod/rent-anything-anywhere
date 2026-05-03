@@ -2,16 +2,23 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === "production";
+const LOCAL_CLIENT_URL = "http://localhost:5173";
+const LOCAL_SERVER_URL = `http://localhost:${process.env.PORT || 5001}`;
+
+function stripTrailingSlash(value = "") {
+  return String(value).replace(/\/+$/, "");
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: process.env.PORT || 5001,
-  serverUrl: process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5001}`,
-  clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
+  serverUrl: stripTrailingSlash(process.env.SERVER_URL || (isProduction ? "" : LOCAL_SERVER_URL)),
+  clientUrl: stripTrailingSlash(process.env.CLIENT_URL || (isProduction ? "" : LOCAL_CLIENT_URL)),
 
-  // ✅ FIXED: No local fallback
   mongoUri: process.env.MONGO_URI,
 
-  jwtSecret: process.env.JWT_SECRET || "dev_rent_anything_anywhere_secret_change_me",
+  jwtSecret: process.env.JWT_SECRET || (isProduction ? "" : "dev_rent_anything_anywhere_secret_change_me"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
 
   cloudinary: {
@@ -35,6 +42,10 @@ const env = {
     apiKey: process.env.OPENAI_API_KEY
   },
 
+  grok: {
+    apiKey: process.env.GROK_API_KEY
+  },
+
   smtp: {
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT,
@@ -53,6 +64,10 @@ const env = {
     url: process.env.TURN_SERVER_URL,
     username: process.env.TURN_SERVER_USERNAME,
     credential: process.env.TURN_SERVER_CREDENTIAL
+  },
+
+  upi: {
+    vpa: process.env.UPI_VPA || (isProduction ? "" : "rentanything@upi")
   }
 };
 
@@ -64,9 +79,15 @@ function assertRequiredEnv() {
   const missing = [];
   if (!env.mongoUri) missing.push("MONGO_URI");
   if (!env.jwtSecret) missing.push("JWT_SECRET");
+  if (env.nodeEnv === "production" && !env.clientUrl) missing.push("CLIENT_URL");
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+  }
+
+  const placeholderSecrets = ["your_jwt_secret_here", "change_me"];
+  if (placeholderSecrets.some((value) => env.jwtSecret.includes(value))) {
+    throw new Error("JWT_SECRET must be set to a strong non-placeholder value");
   }
 }
 

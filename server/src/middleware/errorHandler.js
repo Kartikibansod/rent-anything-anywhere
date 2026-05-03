@@ -4,6 +4,7 @@ function notFound(req, res) {
 
 function errorHandler(err, req, res, next) {
   const statusCode = err.statusCode || (res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
+  const isProduction = process.env.NODE_ENV === "production";
 
   if (err.name === "ValidationError") {
     return res.status(400).json({
@@ -32,7 +33,7 @@ function errorHandler(err, req, res, next) {
   console.error(err);
 
   res.status(statusCode).json({
-    message: err.message || "Server error"
+    message: isProduction && statusCode >= 500 ? "Server error" : err.message || "Server error"
   });
 }
 

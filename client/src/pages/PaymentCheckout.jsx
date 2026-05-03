@@ -190,7 +190,7 @@ function UpiPayment({ user }) {
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: "http://localhost:5173/payment-success",
+        return_url: `${window.location.origin}/payment-success`,
         payment_method_data: {
           billing_details: { name: user.name || "Buyer" }
         }

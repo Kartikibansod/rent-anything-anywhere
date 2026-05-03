@@ -22,16 +22,25 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 
-const allowedOrigins = new Set([
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://localhost:5174",
-  "http://127.0.0.1:5174",
-  env.clientUrl
-]);
+function getAllowedOrigins() {
+  const origins = new Set();
+  if (env.clientUrl) origins.add(env.clientUrl);
+  if (env.nodeEnv !== "production") {
+    origins.add("http://localhost:5173");
+    origins.add("http://127.0.0.1:5173");
+    origins.add("http://localhost:5174");
+    origins.add("http://127.0.0.1:5174");
+  }
+  return origins;
+}
 
 function isLocalDevOrigin(origin = "") {
+  if (env.nodeEnv === "production") return false;
   return /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+}
+
+function isAllowedOrigin(origin) {
+  return !origin || getAllowedOrigins().has(origin) || isLocalDevOrigin(origin);
 }
 
 // Blocks Mongo operator injection in body/query/params while preserving normal values.
@@ -53,7 +62,7 @@ function createApp() {
   app.use(helmet());
   app.use(cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.has(origin) || isLocalDevOrigin(origin)) return callback(null, true);
+      if (isAllowedOrigin(origin)) return callback(null, true);
       return callback(new Error(`CORS blocked origin: ${origin}`));
     },
     credentials: true
@@ -94,3 +103,4 @@ const app = createApp();
 
 module.exports = app;
 module.exports.createApp = createApp;
+module.exports.isAllowedOrigin = isAllowedOrigin;

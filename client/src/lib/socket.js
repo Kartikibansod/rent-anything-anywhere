@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
-import { api } from "./api.js";
+import { APP_BASE_URL, api } from "./api.js";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || APP_BASE_URL;
 
 let socket = null;
 
@@ -26,7 +26,7 @@ export const initSocket = async () => {
   });
 
   socket.on("connect", () => {
-    console.log("Socket connected:", socket.id);
+    if (import.meta.env.DEV) console.log("Socket connected:", socket.id);
   });
 
   socket.on("connect_error", (error) => {
@@ -34,7 +34,7 @@ export const initSocket = async () => {
   });
 
   socket.on("disconnect", (reason) => {
-    console.log("Socket disconnected:", reason);
+    if (import.meta.env.DEV) console.log("Socket disconnected:", reason);
   });
 
   return socket;

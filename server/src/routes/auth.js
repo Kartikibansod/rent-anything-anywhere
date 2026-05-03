@@ -77,7 +77,7 @@ authRouter.get("/google/callback", ensureGoogleStrategy, passport.authenticate("
     return res.redirect(`${env.clientUrl}/login?error=google_email_not_verified`);
   }
   const token = signAuthToken(req.user);
-  res.redirect(`http://localhost:5173/auth/callback?token=${encodeURIComponent(token)}`);
+  res.redirect(`${env.clientUrl}/auth/callback?token=${encodeURIComponent(token)}`);
 });
 
 authRouter.post("/google/user-type", asyncHandler(async (req, res) => {

@@ -48,6 +48,6 @@ npm run dev
 
 ## Frontend Environment Variables (`client/.env`)
 
-- `VITE_API_URL=http://localhost:5001/api`
+- `VITE_API_URL=https://your-backend.onrender.com`
 - `VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...`
 - `VITE_GOOGLE_CLIENT_ID=...`

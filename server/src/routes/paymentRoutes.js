@@ -236,7 +236,8 @@ router.post("/payments/upi", authenticate, asyncHandler(async (req, res) => {
   if (!ensureVerifiedForPayments(req, res)) return;
   const listing = await getPayableListing(req);
   const amount = calculateListingAmount(listing);
-  const vpa = process.env.UPI_VPA || "rentanything@upi";
+  const vpa = env.upi.vpa;
+  if (!vpa) return res.status(503).json({ message: "UPI payment is not configured." });
   const reference = `RAA-${crypto.randomBytes(6).toString("hex").toUpperCase()}`;
   const name = encodeURIComponent("Rent Anything Anywhere");
   const note = encodeURIComponent(`${listing.title} ${reference}`.slice(0, 80));

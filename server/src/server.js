@@ -3,7 +3,7 @@ dotenv.config();
 
 const app = require("./app");
 const connectDB = require("./config/db");
-const { PORT } = require("./config/env");
+const { PORT, env, assertRequiredEnv } = require("./config/env");
 const setupSocket = require("./socket");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -14,7 +14,10 @@ const server = http.createServer(app);
 // Socket.io setup with CORS
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin(origin, callback) {
+      if (!origin || origin === env.clientUrl || env.nodeEnv !== "production") return callback(null, true);
+      return callback(new Error("Socket CORS blocked"));
+    },
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -25,6 +28,7 @@ const io = new Server(server, {
 setupSocket(io);
 
 // Connect to database and start server
+assertRequiredEnv();
 connectDB()
   .then(() => {
     server.listen(PORT, () => {

@@ -1,3 +1,6 @@
+const dotenv = require("dotenv");
+dotenv.config();
+
 const app = require("./app");
 const connectDB = require("./config/db");
 const { PORT } = require("./config/env");
@@ -28,9 +31,15 @@ connectDB()
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📡 Socket.io ready`);
     });
-    notifyExpiringListings().catch((error) => console.error("Expiry notification check failed:", error.message));
+
+    notifyExpiringListings().catch((error) =>
+      console.error("Expiry notification check failed:", error.message)
+    );
+
     setInterval(() => {
-      notifyExpiringListings().catch((error) => console.error("Expiry notification check failed:", error.message));
+      notifyExpiringListings().catch((error) =>
+        console.error("Expiry notification check failed:", error.message)
+      );
     }, 24 * 60 * 60 * 1000);
   })
   .catch((err) => {

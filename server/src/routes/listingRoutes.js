@@ -8,7 +8,7 @@ const { asyncHandler } = require("../utils/asyncHandler");
 const { authenticate } = require("../middleware/auth");
 const { upload } = require("../middleware/upload");
 const { uploadImageBuffer } = require("../services/cloudinaryService");
-const { estimatePrice, scoreCondition } = require("../services/aiService");
+const { scoreCondition } = require("../services/aiService");
 
 const router = express.Router();
 const suspiciousKeywords = ["advance payment only", "urgent transfer", "crypto only", "no meetup"];
@@ -74,23 +74,6 @@ async function detectFraudSignals({ owner, category, price, description }) {
   if (suspiciousKeywords.some((word) => desc.includes(word))) reasons.push("Description contains suspicious keywords");
 
   return reasons;
-}
-
-function normalizeAiEstimate(raw) {
-  if (!raw) return undefined;
-  const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-  return {
-    sellPrice: Number(parsed.sellPrice?.recommended || parsed.sellPrice || 0) || undefined,
-    rentPerDay: Number(parsed.rentPerDay?.recommended || parsed.rentPerDay || 0) || undefined,
-    confidence: parsed.confidence,
-    reasoning: parsed.reasoning,
-    marketAnalysis: parsed.marketAnalysis,
-    pricingReasoning: parsed.pricingReasoning,
-    conditionScore: Number(parsed.conditionScore || 0) || undefined,
-    actualCondition: parsed.actualCondition,
-    warning: parsed.warning,
-    appliedAt: new Date()
-  };
 }
 
 function badRequest(message) {
@@ -169,16 +152,6 @@ router.get("/wishlist", authenticate, asyncHandler(async (req, res) => {
   res.json({ listings });
 }));
 
-router.post("/estimate-price", authenticate, upload.array("photos", 5), asyncHandler(async (req, res) => {
-  const images = [];
-  for (const file of req.files || []) {
-    const base64 = file.buffer.toString("base64");
-    images.push(`data:${file.mimetype};base64,${base64}`);
-  }
-  const result = await estimatePrice({ ...req.body, images });
-  res.json(result);
-}));
-
 router.post("/score-condition", authenticate, upload.single("photo"), asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Photo is required" });
   const uploaded = await uploadImageBuffer(req.file.buffer, "rent-anything-anywhere/condition-ai");
@@ -249,7 +222,6 @@ router.post("/", authenticate, upload.array("photos", 5), asyncHandler(async (re
     rentRates: req.body.type === "rent" ? rentRates : undefined,
     damageDeposit: Number(req.body.damageDeposit || 0),
     description,
-    aiPriceEstimate: normalizeAiEstimate(req.body.aiPriceEstimate),
     location: listingLocation,
     moderation: {
       isFlagged: fraudReasons.length > 0,

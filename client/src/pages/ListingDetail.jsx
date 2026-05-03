@@ -234,7 +234,7 @@ export function ListingDetail() {
                 <XAxis dataKey="label" hide />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="price" fill="#7C3AED" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="price" fill="#171717" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -21,7 +21,6 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
-const aiRoutes = require("./routes/aiRoutes");
 
 const allowedOrigins = new Set([
   "http://localhost:5173",
@@ -79,7 +78,6 @@ function createApp() {
   app.use("/api/listings", listingRoutes);
   app.use("/api/bookings", bookingRoutes);
   app.use("/api/messages", messageRoutes);
-  app.use("/api/ai", aiRoutes);
   app.use("/api", paymentRoutes);
   app.use("/api/reviews", reviewRoutes);
   app.use("/api/reports", reportRoutes);

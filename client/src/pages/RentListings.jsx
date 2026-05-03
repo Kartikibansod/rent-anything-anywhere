@@ -58,7 +58,7 @@ export function RentListings() {
     <div className="space-y-8 pb-20">
       {/* Header */}
       <motion.div
-        className="relative isolate overflow-hidden rounded-[36px] bg-gradient-to-br from-violet-600 to-purple-700 px-8 py-14 text-white shadow-2xl"
+        className="relative isolate overflow-hidden rounded-[36px] bg-[linear-gradient(135deg,#111111_0%,#3a332d_55%,#8f7864_100%)] px-8 py-14 text-white shadow-2xl shadow-stone-900/10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >

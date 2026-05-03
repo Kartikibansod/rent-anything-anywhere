@@ -130,18 +130,6 @@ const listingSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
-    aiPriceEstimate: {
-      sellPrice: Number,
-      rentPerDay: Number,
-      confidence: String,
-      reasoning: String,
-      marketAnalysis: String,
-      pricingReasoning: String,
-      conditionScore: Number,
-      actualCondition: String,
-      warning: String,
-      appliedAt: Date
-    }
   },
   { timestamps: true }
 );

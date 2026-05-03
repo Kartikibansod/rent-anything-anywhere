@@ -7,30 +7,34 @@ const env = {
   port: process.env.PORT || 5001,
   serverUrl: process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5001}`,
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
-  mongoUri: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/rent_anything_anywhere",
+
+  // ✅ FIXED: No local fallback
+  mongoUri: process.env.MONGO_URI,
+
   jwtSecret: process.env.JWT_SECRET || "dev_rent_anything_anywhere_secret_change_me",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
+
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
     apiKey: process.env.CLOUDINARY_API_KEY,
     apiSecret: process.env.CLOUDINARY_API_SECRET
   },
+
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
   },
+
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET
   },
+
   openai: {
     apiKey: process.env.OPENAI_API_KEY
   },
-  grok: {
-    apiKey: process.env.GROK_API_KEY,
-    baseUrl: process.env.GROK_BASE_URL || "https://api.x.ai/v1"
-  },
+
   smtp: {
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT,
@@ -38,11 +42,13 @@ const env = {
     pass: process.env.SMTP_PASS,
     from: process.env.SMTP_FROM
   },
+
   twilio: {
     sid: process.env.TWILIO_ACCOUNT_SID,
     authToken: process.env.TWILIO_AUTH_TOKEN,
     phone: process.env.TWILIO_PHONE
   },
+
   turn: {
     url: process.env.TURN_SERVER_URL,
     username: process.env.TURN_SERVER_USERNAME,
@@ -58,7 +64,10 @@ function assertRequiredEnv() {
   const missing = [];
   if (!env.mongoUri) missing.push("MONGO_URI");
   if (!env.jwtSecret) missing.push("JWT_SECRET");
-  if (missing.length > 0) throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+  }
 }
 
 module.exports = env;
@@ -66,15 +75,17 @@ module.exports.env = env;
 module.exports.assertRequiredEnv = assertRequiredEnv;
 module.exports.PORT = env.port;
 module.exports.smtpConfigured = smtpConfigured;
+
 module.exports.hasUsableGoogleCredentials = function hasUsableGoogleCredentials() {
   const clientId = String(env.google.clientId || "").trim();
   const clientSecret = String(env.google.clientSecret || "").trim();
+
   return Boolean(
-    clientId
-      && clientSecret
-      && !clientId.includes("*")
-      && !clientSecret.includes("*")
-      && !clientId.includes("your_")
-      && !clientSecret.includes("your_")
+    clientId &&
+    clientSecret &&
+    !clientId.includes("*") &&
+    !clientSecret.includes("*") &&
+    !clientId.includes("your_") &&
+    !clientSecret.includes("your_")
   );
 };

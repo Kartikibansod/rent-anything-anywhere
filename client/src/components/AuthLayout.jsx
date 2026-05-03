@@ -13,7 +13,7 @@ export function AuthLayout({ children, eyebrow, title, subtitle, switchText, swi
             transition={{ duration: 10, repeat: Infinity }}
             style={{
               background:
-                "radial-gradient(circle at 20% 25%, white 0, transparent 22%), radial-gradient(circle at 80% 70%, #67e8f9 0, transparent 24%)"
+                "radial-gradient(circle at 20% 25%, white 0, transparent 22%), radial-gradient(circle at 80% 70%, #c7b9a4 0, transparent 24%)"
             }}
           />
           <Link to="/" className="text-lg font-semibold tracking-tight">

@@ -90,7 +90,7 @@ export function AdminDashboard() {
               <XAxis dataKey="category" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="count" fill="#7c3aed" radius={[12, 12, 0, 0]} />
+              <Bar dataKey="count" fill="#171717" radius={[12, 12, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

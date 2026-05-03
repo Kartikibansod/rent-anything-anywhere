@@ -25,7 +25,7 @@ const ensureDescription = (item) => {
     : `${description} Well maintained and ready for student use.`;
 };
 
-const listings = [
+const demoListings = [
   { title: "Atomic Habits by James Clear", type: "sell", askingPrice: 280, category: "Books", condition: "like_new", conditionDescription: "Read once, no highlights, spine intact", itemAge: "6 months", description: "Bestseller on habits.", photos: [{ url: "https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg", publicId: "atomic-habits" }] },
   { title: "The Alchemist by Paulo Coelho", type: "rent", rentRates: { daily: 10, weekly: 60, monthly: 220 }, category: "Books", condition: "used", conditionDescription: "Some pencil marks, pages intact", itemAge: "1 year", description: "Classic novel.", photos: [{ url: "https://covers.openlibrary.org/b/isbn/9780062315007-L.jpg", publicId: "alchemist" }] },
   { title: "Rich Dad Poor Dad", type: "sell", askingPrice: 200, category: "Books", condition: "like_new", conditionDescription: "No marks, tight spine", itemAge: "3 months", description: "Finance classic.", photos: [{ url: "https://covers.openlibrary.org/b/isbn/9781612680194-L.jpg", publicId: "rich-dad" }] },
@@ -93,7 +93,7 @@ async function seed() {
   testUser.rating = { average: 4.9, count: 12 };
   await testUser.save();
 
-  await Listing.deleteMany({});
+  const listings = process.env.SEED_DEMO_LISTINGS === "true" ? demoListings : [];
   const payload = listings.map((item) => ({
     ...item,
     owner: owner._id,
@@ -103,8 +103,10 @@ async function seed() {
     status: "active",
     moderation: { isFlagged: false, reasons: [], state: "live" }
   }));
-  await Listing.insertMany(payload);
-  console.log(`Seeded ${payload.length} listings near Kolhapur.`);
+  if (payload.length > 0) {
+    await Listing.insertMany(payload);
+  }
+  console.log(`Seeded ${payload.length} demo listings near Kolhapur.`);
   console.log("Test login: test@gmail.com / test1234");
   process.exit(0);
 }

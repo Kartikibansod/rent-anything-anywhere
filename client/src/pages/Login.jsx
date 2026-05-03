@@ -129,9 +129,9 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#f5f3ff_0%,#ede9fe_100%)] px-5 py-10">
-      <motion.section className="w-full max-w-md rounded-[32px] bg-white px-7 py-8 text-center shadow-[0_24px_80px_rgba(124,58,237,0.16)] sm:px-9" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[linear-gradient(135deg,#7c3aed,#2563eb)] text-2xl font-black text-white shadow-lg shadow-violet-200">R</div>
+    <div className="flex min-h-screen items-center justify-center bg-[#f4f2ef] px-5 py-10">
+      <motion.section className="w-full max-w-md rounded-[32px] border border-stone-200 bg-white px-7 py-8 text-center shadow-[0_24px_80px_rgba(36,32,28,0.10)] sm:px-9" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[linear-gradient(135deg,#111111,#8f7864)] text-2xl font-black text-white shadow-lg shadow-stone-200">R</div>
         <p className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-violet-500">WELCOME TO</p>
         <h1 className="mt-2 text-3xl font-black text-slate-950">Rent Anything Anywhere</h1>
         <p className="mt-2 text-sm text-slate-500">Buy, sell and rent everything around your campus</p>
@@ -154,7 +154,7 @@ export function Login() {
                   <button className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
                 </div>
               </label>
-              <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] text-base font-bold text-white shadow-lg shadow-violet-200" type="submit" disabled={isSubmitting}>{isSubmitting ? "Logging in..." : "Sign In"}</button>
+              <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#111111_0%,#3a332d_100%)] text-base font-bold text-white shadow-lg shadow-stone-200" type="submit" disabled={isSubmitting}>{isSubmitting ? "Logging in..." : "Sign In"}</button>
               <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"><span className="h-px flex-1 bg-slate-200" />or continue with<span className="h-px flex-1 bg-slate-200" /></div>
               {authConfig.googleConfigured ? (
                 <a className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 font-semibold text-slate-700" href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001'}/api/auth/google`}>
@@ -170,7 +170,7 @@ export function Login() {
             <div className="mt-8 space-y-4 text-left">
               <p className="text-sm text-slate-600">Enter the 6-digit OTP sent to your email.</p>
               <OtpInput value={otp} onChange={setOtp} onComplete={verifyOtp} />
-              <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#7C3AED_0%,#2563EB_100%)] font-bold text-white" type="button" onClick={() => verifyOtp()}>Verify OTP</button>
+              <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#111111_0%,#3a332d_100%)] font-bold text-white" type="button" onClick={() => verifyOtp()}>Verify OTP</button>
               <button className="w-full text-sm font-semibold text-indigo-700 disabled:text-slate-400" type="button" onClick={resendOtp} disabled={cooldown > 0}>Resend OTP {cooldown > 0 ? `in ${cooldown}s` : ""}</button>
             </div>
           )}

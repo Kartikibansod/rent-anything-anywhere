@@ -17,7 +17,7 @@ export function ToastProvider({ children }) {
             boxShadow: "0 18px 60px rgba(15, 23, 42, 0.25)"
           },
           success: {
-            iconTheme: { primary: "#7c3aed", secondary: "#fff" }
+            iconTheme: { primary: "#171717", secondary: "#fff" }
           },
           error: {
             iconTheme: { primary: "#ef4444", secondary: "#fff" }

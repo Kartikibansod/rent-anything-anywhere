@@ -77,7 +77,7 @@ export function AppShell() {
             <NavLink to="/" className="flex shrink-0 items-center gap-2 font-bold tracking-tight" aria-label="Rent Anything Anywhere home">
               <span className="brand-gradient grid h-9 w-9 place-items-center rounded-full text-white shadow-lg shadow-indigo-500/25">R</span>
             </NavLink>
-            {user ? <span className="hidden whitespace-nowrap text-[18px] font-bold text-[#7c3aed] md:inline-block">Hey {capitalizeName(user.name)}!</span> : null}
+            {user ? <span className="hidden whitespace-nowrap text-[18px] font-bold text-[#171717] md:inline-block">Hey {capitalizeName(user.name)}!</span> : null}
           </div>
           <nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-2 rounded-full bg-white/55 p-1 lg:flex">
             {centerLinks.map(([to, label]) => (

@@ -1,5 +1,5 @@
 import React from "react";
-import { Camera, Check, LocateFixed, MapPin, Search, Sparkles, Package, Tag, X } from "lucide-react";
+import { Camera, Check, LocateFixed, MapPin, Search, Package, Tag, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -37,25 +37,12 @@ export function CreateListing() {
     lng: "74.2433"
   });
   const [photos, setPhotos] = useState([]);
-  const [estimate, setEstimate] = useState(null);
   const [aiCondition, setAiCondition] = useState(null);
-  const [grokConfigured, setGrokConfigured] = useState(false);
-  const [grokMessage, setGrokMessage] = useState("");
-  const [isEstimating, setIsEstimating] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [areaSearch, setAreaSearch] = useState("");
   const [areaSuggestions, setAreaSuggestions] = useState([]);
   const [isSearchingArea, setIsSearchingArea] = useState(false);
   const [locationHelp, setLocationHelp] = useState("");
-
-  useEffect(() => {
-    api.get("/ai/config")
-      .then(({ data }) => {
-        setGrokConfigured(Boolean(data.grokConfigured));
-        setGrokMessage(data.message || "");
-      })
-      .catch(() => setGrokConfigured(false));
-  }, []);
 
   const previews = useMemo(() => photos.map((file) => ({ file, url: URL.createObjectURL(file) })), [photos]);
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -94,25 +81,6 @@ export function CreateListing() {
 
   function removePhoto(indexToRemove) {
     setPhotos((current) => current.filter((_, index) => index !== indexToRemove));
-  }
-
-  async function estimatePrice() {
-    setIsEstimating(true);
-    try {
-      const { data } = await api.post("/ai/estimate-price", {
-        title: form.title,
-        category: form.category,
-        condition: form.condition,
-        itemAge: form.itemAge,
-        description: form.description
-      });
-      setEstimate(data);
-      toast.success("Price estimate ready");
-    } catch (err) {
-      toast.error(getErrorMessage(err, "Could not estimate price"));
-    } finally {
-      setIsEstimating(false);
-    }
   }
 
   async function reverseGeocode(lat, lng) {
@@ -222,8 +190,6 @@ export function CreateListing() {
       body.append("damageDeposit", form.damageDeposit || 0);
       body.append("availability", JSON.stringify([]));
     }
-    if (estimate) body.append("aiPriceEstimate", JSON.stringify(estimate));
-
     try {
       const { data } = await api.post("/listings", body);
       toast.success("Listing published");
@@ -279,7 +245,6 @@ export function CreateListing() {
                 <p className="mt-2 text-sm text-slate-600">{body}</p>
               </motion.button>
             ))}
-            {estimate ? <div className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-900 sm:col-span-2">Estimated sell: INR {estimate.sellPrice?.recommended || estimate.sellPrice || "-"}, rent/day: INR {estimate.rentPerDay?.recommended || estimate.rentPerDay || "-"}. Confidence: {estimate.confidence || "medium"}. {estimate.marketAnalysis || estimate.pricingReasoning || estimate.reasoning} {estimate.actualCondition ? <span className="font-bold">Actual condition: {estimate.actualCondition}</span> : null}</div> : null}
             {aiCondition ? <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900 sm:col-span-2">Condition score: {aiCondition.score}/10. {aiCondition.reasoning}</div> : null}
           </div>
         ) : null}
@@ -331,26 +296,6 @@ export function CreateListing() {
 
         {step === 3 ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            {grokConfigured ? <button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-60 sm:col-span-2" onClick={estimatePrice} disabled={isEstimating}><Sparkles size={16} />{isEstimating ? "Estimating price..." : "AI Estimate Price"}</button> : <div className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:col-span-2">AI Estimator needs setup. Add valid GROK_API_KEY to server/.env <a className="underline" href="https://console.x.ai" target="_blank" rel="noreferrer">console.x.ai</a></div>}
-            {estimate ? (
-              <div className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-900 sm:col-span-2">
-                <p className="font-bold">AI estimate</p>
-                <p>Sell: INR {estimate.sellPrice?.recommended || estimate.sellPrice || "-"} · Rent/day: INR {estimate.rentPerDay?.recommended || estimate.rentPerDay || "-"} · Confidence: {estimate.confidence || "medium"}</p>
-                <p className="mt-1">{estimate.reasoning || estimate.marketAnalysis || estimate.pricingReasoning}</p>
-                {estimate.actualCondition ? <p className="mt-1 font-bold text-amber-700">Actual condition: {estimate.actualCondition}</p> : null}
-                <button
-                  className="mt-3 rounded-xl bg-indigo-700 px-3 py-2 text-xs font-bold text-white"
-                  type="button"
-                  onClick={() => setForm((current) => ({
-                    ...current,
-                    askingPrice: type === "sell" && (estimate.sellPrice?.recommended || estimate.sellPrice) ? String(estimate.sellPrice?.recommended || estimate.sellPrice) : current.askingPrice,
-                    daily: type === "rent" && (estimate.rentPerDay?.recommended || estimate.rentPerDay) ? String(estimate.rentPerDay?.recommended || estimate.rentPerDay) : current.daily
-                  }))}
-                >
-                  Use this price
-                </button>
-              </div>
-            ) : null}
             {type === "sell" ? <Input name="askingPrice" placeholder="Sell price" value={form.askingPrice} onChange={update} /> : (
               <>
                 <Input name="daily" placeholder="Price per day" value={form.daily} onChange={update} />

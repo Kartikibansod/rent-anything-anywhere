@@ -11,7 +11,10 @@ router.use(authenticate);
 router.get("/", asyncHandler(async (req, res) => {
   const messages = await Message.find({
     $or: [{ sender: req.user._id }, { receiver: req.user._id }]
-  }).sort({ createdAt: -1 });
+  })
+    .populate("sender receiver", "name")
+    .populate("listing", "title")
+    .sort({ createdAt: -1 });
 
   const grouped = Object.values(
     messages.reduce((acc, item) => {

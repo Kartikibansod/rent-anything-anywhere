@@ -5,6 +5,11 @@ import { api } from "../lib/api.js";
 import { getChatMessages, getChats, initSocket } from "../lib/socket.js";
 import { useUser } from "../lib/userContext.jsx";
 
+function getConversationSubtitle(item, currentUserId) {
+  const partner = String(item.sender?._id || item.sender) === String(currentUserId) ? item.receiver : item.sender;
+  return item.listing?.title || partner?.name || "Conversation";
+}
+
 export function ChatInbox() {
   const { user, coords } = useUser();
   const [params] = useSearchParams();
@@ -109,6 +114,7 @@ export function ChatInbox() {
   }
 
   const cashBanner = messages.find((msg) => msg.type === "system" && msg.content?.startsWith("Cash meetup agreed for"));
+  const activeSubtitle = activeConversation ? getConversationSubtitle(activeConversation, user?._id) : "Select a chat";
 
   return (
     <div className="grid h-[calc(100vh-7rem)] grid-cols-1 overflow-hidden rounded-3xl border border-slate-200 bg-white lg:grid-cols-[340px_1fr]">
@@ -123,7 +129,7 @@ export function ChatInbox() {
             onClick={() => setActiveId(item.conversationId)}
           >
             <p className="font-semibold">{item.content || "Conversation"}</p>
-            <p className="text-xs text-slate-500">{item.conversationId}</p>
+            <p className="text-xs text-slate-500">{getConversationSubtitle(item, user?._id)}</p>
           </button>
         ))}
       </aside>
@@ -131,7 +137,7 @@ export function ChatInbox() {
         <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
           <div>
             <p className="font-semibold">Conversation</p>
-            <p className="text-xs text-slate-500">{activeConversation?.conversationId || "Select a chat"}</p>
+            <p className="text-xs text-slate-500">{activeSubtitle}</p>
           </div>
           <div className="flex items-center gap-2">
             <button className="rounded-full border p-2"><Mic size={16} /></button>

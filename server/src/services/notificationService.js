@@ -19,11 +19,11 @@ function htmlEmail({ title, message, actionUrl }) {
   const safeMessage = String(message || "");
   return `
     <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a">
-      <div style="width:44px;height:44px;border-radius:999px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;display:grid;place-items:center;font-weight:800;font-size:22px;margin-bottom:16px">R</div>
-      <h2 style="margin:0 0 16px;color:#4f46e5">Rent Anything Anywhere</h2>
+      <div style="width:44px;height:44px;border-radius:999px;background:linear-gradient(135deg,#111111,#8f7864);color:#fff;display:grid;place-items:center;font-weight:800;font-size:22px;margin-bottom:16px">R</div>
+      <h2 style="margin:0 0 16px;color:#171717">Rent Anything Anywhere</h2>
       <h3 style="margin:0 0 12px">${safeTitle}</h3>
       <p style="line-height:1.6;margin:0 0 20px">${safeMessage}</p>
-      ${actionUrl ? `<a href="${actionUrl}" style="display:inline-block;background:#4f46e5;color:white;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:700">Open in app</a>` : ""}
+      ${actionUrl ? `<a href="${actionUrl}" style="display:inline-block;background:#171717;color:white;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:700">Open in app</a>` : ""}
       <p style="margin-top:24px;color:#64748b;font-size:13px">Rent Anything Anywhere</p>
     </div>
   `;

@@ -10,7 +10,6 @@ A MERN peer-to-peer marketplace for hostel students and nearby locals to buy, se
 - Stripe payments (`/api/payments/create-intent`) with UPI/card support + webhook confirmation.
 - Verified-user-only payment gate (email verified + profile completed + student ID approval for students).
 - Cash-on-meetup still supported with in-app dual confirmations.
-- AI price estimator (`gpt-4o-mini`) for sell/rent suggestions.
 - AI condition scorer (`gpt-4o`) with condition score, auto condition fill, and reasoning.
 - Fraud detection and auto-flagging for suspicious listings, with admin review flow.
 - Price history capture on sold/rented completion and chart on listing detail page.

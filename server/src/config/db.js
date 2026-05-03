@@ -5,7 +5,7 @@ async function connectDB() {
   try {
     mongoose.set("strictQuery", true);
 
-    const connection = await mongoose.connect(env.mongoUri);
+    const connection = await mongoose.connect(env.mongoUri, { serverSelectionTimeoutMS: 5000 });
 
     console.log("MongoDB Atlas Connected:", connection.connection.host);
   } catch (error) {

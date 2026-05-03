@@ -10,7 +10,7 @@ async function connectDB() {
     console.log("MongoDB Atlas Connected:", connection.connection.host);
   } catch (error) {
     console.error("DB connection error:", error.message);
-    process.exit(1);
+    throw error;
   }
 }
 

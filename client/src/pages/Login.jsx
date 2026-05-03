@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "../components/ToastProvider.jsx";
 import { OtpInput } from "../components/OtpInput.jsx";
-import { api, getErrorMessage } from "../lib/api.js";
+import { APP_BASE_URL, api, getErrorMessage } from "../lib/api.js";
 import { isAllowedEmail } from "../lib/emailValidation.js";
 import { useUser } from "../lib/userContext.jsx";
 
@@ -157,7 +157,7 @@ export function Login() {
               <button className="h-14 w-full rounded-2xl bg-[linear-gradient(135deg,#111111_0%,#3a332d_100%)] text-base font-bold text-white shadow-lg shadow-stone-200" type="submit" disabled={isSubmitting}>{isSubmitting ? "Logging in..." : "Sign In"}</button>
               <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"><span className="h-px flex-1 bg-slate-200" />or continue with<span className="h-px flex-1 bg-slate-200" /></div>
               {authConfig.googleConfigured ? (
-                <a className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 font-semibold text-slate-700" href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5001'}/api/auth/google`}>
+                <a className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 font-semibold text-slate-700" href={`${APP_BASE_URL}/api/auth/google`}>
                   <span className="text-lg font-black text-[#4285F4]">G</span> Continue with Google
                 </a>
               ) : (
